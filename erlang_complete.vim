@@ -32,7 +32,7 @@ let s:erlangExternalFuncBeg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
 let s:ErlangBlankLine       = '^\s*\(%.*\)\?$'
 
 " Main function for completion
-function! erlangcomplete#Complete(findstart, base)
+function! erlang_complete#Complete(findstart, base)
 	let lnum = line('.')
 	let column = col('.')
 	let line = strpart(getline('.'), 0, column - 1)
