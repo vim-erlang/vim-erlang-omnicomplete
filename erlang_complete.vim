@@ -4,35 +4,35 @@
 " Contributors: kTT (http://github.com/kTT)
 "               Ricardo Catalinas Jiménez <jimenezrick@gmail.com>
 "               Eduardo Lopez (http://github.com/tapichu)
-" Version:      2011/08/06
+" Version:      2011/09/10
 
 " Completion options
-if !exists('g:erlangCompletionGrep')
-	let g:erlangCompletionGrep = 'grep'
+if !exists('g:erlang_completion_grep')
+	let g:erlang_completion_grep = 'grep'
 endif
 
-if !exists('g:erlangManSuffix')
-	let g:erlangManSuffix = ''
+if !exists('g:erlang_man_suffix')
+	let g:erlang_man_suffix = ''
 endif
 
-if !exists('g:erlangManPath')
-	let g:erlangManPath = '/usr/lib/erlang/man'
+if !exists('g:erlang_man_path')
+	let g:erlang_man_path = '/usr/lib/erlang/man'
 endif
 
-if !exists('g:erlangCompletionDisplayDoc')
-	let g:erlangCompletionDisplayDoc = 1
+if !exists('g:erlang_completion_display_doc')
+	let g:erlang_completion_display_doc = 1
 endif
 
 " Completion program path
-let s:erlangCompleteFile = expand('<sfile>:p:h') . '/erlang_complete.erl'
+let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
 " Patterns for completions
-let s:erlangLocalFuncBeg    = '\(\<[0-9A-Za-z_-]*\|\s*\)$'
-let s:erlangExternalFuncBeg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
-let s:ErlangBlankLine       = '^\s*\(%.*\)\?$'
+let s:erlang_local_func_beg    = '\(\<[0-9A-Za-z_-]*\|\s*\)$'
+let s:erlang_external_func_beg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
+let s:erlang_blank_line        = '^\s*\(%.*\)\?$'
 
 " Main function for completion
-function! erlang_complete#Complete(findstart, base)
+function erlang_complete#Complete(findstart, base)
 	let lnum = line('.')
 	let column = col('.')
 	let line = strpart(getline('.'), 0, column - 1)
@@ -51,28 +51,28 @@ function! erlang_complete#Complete(findstart, base)
 		if a:findstart
 			return column
 		else
-			return s:erlangFindLocalFunc(a:base)
+			return s:ErlangFindLocalFunc(a:base)
 		endif
 	endif
 	
 	" 2) Function in external module
-	if line =~ s:erlangExternalFuncBeg
+	if line =~ s:erlang_external_func_beg
 		let delimiter = match(line, ':[0-9A-Za-z_-]*$') + 1
 		if a:findstart
 			return delimiter
 		else
 			let module = matchstr(line[:-2], '\<\k*\>$')
-			return s:erlangFindExternalFunc(module, a:base)
+			return s:ErlangFindExternalFunc(module, a:base)
 		endif
 	endif
 
 	" 3) Local function
-	if line =~ s:erlangLocalFuncBeg
+	if line =~ s:erlang_local_func_beg
 		let funcstart = match(line, ':\@<![0-9A-Za-z_-]*$')
 		if a:findstart
 			return funcstart
 		else
-			return s:erlangFindLocalFunc(a:base)
+			return s:ErlangFindLocalFunc(a:base)
 		endif
 	endif
 
@@ -85,11 +85,11 @@ function! erlang_complete#Complete(findstart, base)
 endfunction
 
 " Find the next non-blank line
-function s:erlangFindNextNonBlank(lnum)
+function s:ErlangFindNextNonBlank(lnum)
 	let lnum = nextnonblank(a:lnum + 1)
 	let line = getline(lnum)
 
-	while line =~ s:ErlangBlankLine && 0 != lnum
+	while line =~ s:erlang_blank_line && 0 != lnum
 		let lnum = nextnonblank(lnum + 1)
 		let line = getline(lnum)
 	endwhile
@@ -98,27 +98,27 @@ function s:erlangFindNextNonBlank(lnum)
 endfunction
 
 " Find external function names
-function s:erlangFindExternalFunc(module, base)
+function s:ErlangFindExternalFunc(module, base)
 	" If it is a local module, try to compile it
 	if filereadable(a:module . '.erl') && !filereadable(a:module . '.beam')
 		silent execute '!erlc' a:module . '.erl' '>/dev/null' '2>/dev/null'
 		redraw!
 	endif
 
-	let functions = system(s:erlangCompleteFile . ' ' . a:module)
+	let functions = system(s:erlang_complete_file . ' ' . a:module)
 	for element in sort(split(functions, '\n'))
 		if match(element, a:base) == 0
 			let function_name = matchstr(element, a:base . '\w*')
 			let number_of_args = matchstr(element, '\d\+', len(function_name))
 			let number_of_comma = max([number_of_args - 1, 0])
-			let file_path = g:erlangManPath . '/man?/' . a:module . '\.?' . g:erlangManSuffix
+			let file_path = g:erlang_man_path . '/man?/' . a:module . '\.?' . g:erlang_man_suffix
 			let description = ''
 
 			" Don't look man pages if the module is present in the current directory
-			if g:erlangCompletionDisplayDoc != 0 && !filereadable(a:module . '.erl')
-				let system_command = g:erlangCompletionGrep . ' -A 1 "\.B" ' . file_path .
-							\' | grep -EZo "\<' . function_name . '\>\((\[?\w+,\]? ){' .
-							\number_of_comma . '}[^),]*\) -> .*"'
+			if g:erlang_completion_display_doc != 0 && !filereadable(a:module . '.erl')
+				let system_command = g:erlang_completion_grep . ' -A 1 "\.B" ' . file_path .
+							\ ' | grep -EZo "\<' . function_name . '\>\((\[?\w+,\]? ){' .
+							\ number_of_comma . '}[^),]*\) -> .*"'
 				let description = system(system_command)
 
 				" Cutting some weird characters at the end with `[:-2]'
@@ -144,9 +144,9 @@ function s:erlangFindExternalFunc(module, base)
 endfunction
 
 " Find local function names
-function s:erlangFindLocalFunc(base)
+function s:ErlangFindLocalFunc(base)
 	" Begin at line 1
-	let lnum = s:erlangFindNextNonBlank(1)
+	let lnum = s:ErlangFindNextNonBlank(1)
 
 	if "" == a:base
 		let base = '\w' " Used to match against word symbol
@@ -160,7 +160,7 @@ function s:erlangFindLocalFunc(base)
 		if function_name != ""
 			call complete_add(function_name)
 		endif
-		let lnum = s:erlangFindNextNonBlank(lnum)
+		let lnum = s:ErlangFindNextNonBlank(lnum)
 	endwhile
 
 	return []
