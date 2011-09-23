@@ -4,7 +4,7 @@
 " Contributors: kTT (http://github.com/kTT)
 "               Ricardo Catalinas Jiménez <jimenezrick@gmail.com>
 "               Eduardo Lopez (http://github.com/tapichu)
-" Version:      2011/09/10
+" Version:      2011/09/23
 
 " Completion options
 if !exists('g:erlang_completion_grep')
