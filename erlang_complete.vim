@@ -26,6 +26,9 @@ endif
 " Completion program path
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
+" Cache used to speed up the completion
+let s:modules_cache = {}
+
 " Patterns for completions
 let s:erlang_local_func_beg    = '\(\<[0-9A-Za-z_-]*\|\s*\)$'
 let s:erlang_external_func_beg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
@@ -109,6 +112,14 @@ function s:ErlangFindExternalFunc(module, base)
 		endif
 	endif
 
+
+	if has_key(s:modules_cache, a:module)
+		" TODO TODO TODO
+		" TODO TODO TODO
+		" TODO TODO TODO
+	endif
+
+
 	let functions = system(s:erlang_complete_file . ' ' . a:module)
 	for element in sort(split(functions, '\n'))
 		if match(element, a:base) == 0
@@ -141,6 +152,9 @@ function s:ErlangFindExternalFunc(module, base)
 			let field = {'word': function_name . '(', 'abbr': description,
 				  \  'kind': 'f', 'dup': 1} " Allow duplicated functions
 			call complete_add(field)
+			if complete_check()
+				break
+			endif
 		endif
 	endfor
 
@@ -162,7 +176,7 @@ function s:ErlangFindLocalFunc(base)
 		let line = getline(lnum)
 		let function_name = matchstr(line, '^' . base . '[0-9A-Za-z_-]\+(\@=')
 		if function_name != ""
-			call complete_add(function_name)
+			call complete_add({'word': function_name, 'kind': 'f'})
 		endif
 		let lnum = s:ErlangFindNextNonBlank(lnum)
 	endwhile
