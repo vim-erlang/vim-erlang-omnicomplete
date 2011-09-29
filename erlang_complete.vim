@@ -105,6 +105,7 @@ function s:ErlangFindExternalFunc(module, base)
 		if !filereadable(a:module . '.beam') ||
 				\ getftime(a:module . '.erl') > getftime(a:module . '.beam')
 			silent execute '!erlc' a:module . '.erl' '>/dev/null' '2>/dev/null'
+			redraw!
 		endif
 	endif
 
