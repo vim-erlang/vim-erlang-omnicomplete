@@ -4,7 +4,7 @@
 " Contributors: kTT (http://github.com/kTT)
 "               Ricardo Catalinas Jiménez <jimenezrick@gmail.com>
 "               Eduardo Lopez (http://github.com/tapichu)
-" Version:      2011/09/23
+" Version:      2011/09/29
 
 " Completion options
 if !exists('g:erlang_completion_grep')
@@ -26,7 +26,7 @@ endif
 " Completion program path
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
-" Cache used to speed up the completion
+" Modules cache used to speed up the completion
 let s:modules_cache = {}
 
 " Patterns for completions
@@ -102,23 +102,29 @@ endfunction
 
 " Find external function names
 function s:ErlangFindExternalFunc(module, base)
-	" If it is a local module, try to compile it when
-	" the .beam doesn't exist or it is old
+	" If it is a local module, try to compile it when the .beam
+	" doesn't exist or is old
 	if filereadable(a:module . '.erl')
 		if !filereadable(a:module . '.beam') ||
 				\ getftime(a:module . '.erl') > getftime(a:module . '.beam')
+			if has_key(s:modules_cache, a:module)
+				call remove(s:modules_cache, a:module)
+			endif
 			silent execute '!erlc' a:module . '.erl' '>/dev/null' '2>/dev/null'
 			redraw!
 		endif
 	endif
 
-
+	" If the module is cached, load its functions
 	if has_key(s:modules_cache, a:module)
-		" TODO TODO TODO
-		" TODO TODO TODO
-		" TODO TODO TODO
-	endif
+		for field_cache in get(s:modules_cache, a:module)
+			if match(field_cache.word, a:base) == 0
+				call complete_add(field_cache)
+			endif
+		endfor
 
+		return []
+	endif
 
 	let functions = system(s:erlang_complete_file . ' ' . a:module)
 	for element in sort(split(functions, '\n'))
@@ -152,7 +158,24 @@ function s:ErlangFindExternalFunc(module, base)
 			let field = {'word': function_name . '(', 'abbr': description,
 				  \  'kind': 'f', 'dup': 1} " Allow duplicated functions
 			call complete_add(field)
+
+			" Populate the cache only when iterating over all the
+			" module functions (i.e. no prefix for the completion)
+			if a:base == ''
+				if !has_key(s:modules_cache, a:module)
+					let s:modules_cache[a:module] = [field]
+				else
+					let fields_cache = get(s:modules_cache, a:module)
+					let s:modules_cache[a:module] = add(fields_cache, field)
+				endif
+			endif
+
+			" The user entered some text, so stop the completion
 			if complete_check()
+				" The module couldn't be entirely cached
+				if has_key(s:modules_cache, a:module)
+					call remove(s:modules_cache, a:module)
+				endif
 				break
 			endif
 		endif
