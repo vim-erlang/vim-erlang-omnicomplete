@@ -99,9 +99,13 @@ endfunction
 
 " Find external function names
 function s:ErlangFindExternalFunc(module, base)
-	" If it is a local module, try to compile it
-	if filereadable(a:module . '.erl') && !filereadable(a:module . '.beam')
-		silent execute '!erlc' a:module . '.erl' '>/dev/null' '2>/dev/null'
+	" If it is a local module, try to compile it when
+	" the .beam doesn't exist or it is old
+	if filereadable(a:module . '.erl')
+		if !filereadable(a:module . '.beam') ||
+				\ getftime(a:module . '.erl') > getftime(a:module . '.beam')
+			silent execute '!erlc' a:module . '.erl' '>/dev/null' '2>/dev/null'
+		endif
 	endif
 
 	let functions = system(s:erlang_complete_file . ' ' . a:module)
@@ -116,8 +120,8 @@ function s:ErlangFindExternalFunc(module, base)
 			" Don't look man pages if the module is present in the current directory
 			if g:erlang_completion_display_doc != 0 && !filereadable(a:module . '.erl')
 				let system_command = g:erlang_completion_grep . ' -A 1 "\.B" ' . file_path .
-							\ ' | grep -EZo "\<' . function_name . '\>\((\[?\w+,\]? ){' .
-							\ number_of_comma . '}[^),]*\) -> .*"'
+						   \ ' | grep -EZo "\<' . function_name . '\>\((\[?\w+,\]? ){' .
+						   \ number_of_comma . '}[^),]*\) -> .*"'
 				let description = system(system_command)
 
 				" Cutting some weird characters at the end with `[:-2]'
@@ -134,7 +138,7 @@ function s:ErlangFindExternalFunc(module, base)
 			endif
 
 			let field = {'word': function_name . '(', 'abbr': description,
-						\'kind': 'f', 'dup': 1} " Allow to duplicate functions
+				  \  'kind': 'f', 'dup': 1} " Allow duplicated functions
 			call complete_add(field)
 		endif
 	endfor
