@@ -8,7 +8,7 @@
 
 " Completion options
 if !exists('g:erlang_completion_grep')
-	let g:erlang_completion_grep = 'grep'
+	let g:erlang_completion_grep = 'zgrep'
 endif
 
 if !exists('g:erlang_man_path')
