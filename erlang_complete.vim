@@ -11,10 +11,6 @@ if !exists('g:erlang_completion_grep')
 	let g:erlang_completion_grep = 'grep'
 endif
 
-if !exists('g:erlang_man_extension')
-	let g:erlang_man_extension = ''
-endif
-
 if !exists('g:erlang_man_path')
 	let g:erlang_man_path = '/usr/lib/erlang/man'
 endif
@@ -132,7 +128,7 @@ function s:ErlangFindExternalFunc(module, base)
 			let function_name = matchstr(element, a:base . '\w*')
 			let number_of_args = matchstr(element, '\d\+', len(function_name))
 			let number_of_comma = max([number_of_args - 1, 0])
-			let file_path = g:erlang_man_path . '/man?/' . a:module . '.?' . g:erlang_man_extension
+			let file_path = g:erlang_man_path . '/man?/' . a:module . '.*'
 			let description = ''
 
 			" Don't look man pages if the module is present in the current directory
