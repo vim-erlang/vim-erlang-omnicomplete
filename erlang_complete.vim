@@ -11,16 +11,15 @@ if !exists('g:erlang_completion_grep')
 	let g:erlang_completion_grep = 'zgrep'
 endif
 
-if !exists('g:erlang_man_path')
-	let g:erlang_man_path = '/usr/lib/erlang/man'
-endif
-
 if !exists('g:erlang_completion_display_doc')
 	let g:erlang_completion_display_doc = 1
 endif
 
 " Completion program path
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
+
+" Man pages path
+let s:erlang_man_path = system("grep ^ROOTDIR= $(which erl) | sed 's/^.*=//'")[:-2] . '/man'
 
 " Modules cache used to speed up the completion
 let s:modules_cache = {}
@@ -128,7 +127,7 @@ function s:ErlangFindExternalFunc(module, base)
 			let function_name = matchstr(element, a:base . '\w*')
 			let number_of_args = matchstr(element, '\d\+', len(function_name))
 			let number_of_comma = max([number_of_args - 1, 0])
-			let file_path = g:erlang_man_path . '/man?/' . a:module . '.*'
+			let file_path = s:erlang_man_path . '/man?/' . a:module . '.*'
 			let description = ''
 
 			" Don't look man pages if the module is present in the current directory
