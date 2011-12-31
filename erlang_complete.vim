@@ -131,7 +131,7 @@ function s:ErlangFindExternalFunc(module, base)
 			let description = ''
 
 			" Don't look man pages if the module is present in the current directory
-			if g:erlang_completion_display_doc != 0 && !filereadable(a:module . '.erl')
+			if g:erlang_completion_display_doc != 0 && !filereadable(a:module . '.beam')
 				let system_command = g:erlang_completion_grep . ' -A 1 "\.B" ' . file_path .
 						   \ ' | grep -Eo "\<' . function_name . '\>\((\[?\w+,\]? ){' .
 						   \ number_of_comma . '}[^),]*\) -> .*"'
