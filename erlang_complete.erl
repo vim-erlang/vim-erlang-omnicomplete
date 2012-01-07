@@ -13,6 +13,5 @@ main([ModuleName]) ->
         error:undef ->
             bad_module
     end;
-
 main(_) ->
     bad_module.
