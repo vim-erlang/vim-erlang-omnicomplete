@@ -4,7 +4,7 @@
 " Contributors: kTT (http://github.com/kTT)
 "               Ricardo Catalinas Jiménez <jimenezrick@gmail.com>
 "               Eduardo Lopez (http://github.com/tapichu)
-" License:      GNU GPL version 3
+" License:      Vim license
 " Version:      2011/09/29
 
 " Completion options
