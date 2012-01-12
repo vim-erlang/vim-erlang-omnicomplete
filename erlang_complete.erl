@@ -10,41 +10,46 @@ main([ModName]) ->
             ok
     end,
     Mod = erlang:list_to_atom(ModName),
-    try Mod:module_info(exports) of
-        Funs ->
-            lists:foreach(
-                fun({FunName, ArgsCount}) ->
-                        io:format("~s/~B~n", [FunName, ArgsCount])
-                end,
-                Funs)
+    Edoc = try module_edoc(Mod)
     catch
-        error:undef ->
-            bad_module
-    end;
+        throw:undef -> [] % XXX: throw from module_edoc/1
+    end,
+    Info = try module_info2(Mod)
+    catch
+        error:undef -> []
+    end,
+    Funs = merge_functions(Edoc, Info),
+    lists:foreach(fun print_function/1, Funs);
 main(_) ->
     bad_module.
 
+module_edoc(_Mod) ->
+    [].
+module_info2(Mod) ->
+    lists:keysort(1, Mod:module_info(exports)).
 
+print_function({Name, Arity}) ->
+    io:format("~s/~B~n", [Name, Arity]);
+print_function({Name, Args, Return}) ->
+    io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
 
+merge_functions(Edoc, Info) ->
+    merge_functions(Edoc, Info, []).
 
-
-merge_module_functions(Edoc, ModInfo) ->
-    merge_module_functions(Edoc, ModInfo, []).
-
-merge_module_functions([], [], Funs) ->
+merge_functions([], [], Funs) ->
     lists:reverse(Funs);
-merge_module_functions([], ModInfo, Funs) ->
-    lists:reverse(Funs, ModInfo);
-merge_module_functions(Edoc, [], Funs) ->
+merge_functions([], Info, Funs) ->
+    lists:reverse(Funs, Info);
+merge_functions(Edoc, [], Funs) ->
     lists:reverse(Funs, Edoc);
-merge_module_functions(Edoc, ModInfo, Funs) ->
+merge_functions(Edoc, Info, Funs) ->
     [H1 | T1] = Edoc,
-    [H2 | T2] = ModInfo,
+    [H2 | T2] = Info,
     if
         H1 == H2 ->
-            merge_module_functions(T1, T2, [H1 | Funs]);
+            merge_functions(T1, T2, [H1 | Funs]);
         H1 < H2 ->
-            merge_module_functions(T1, ModInfo, [H1 | Funs]);
+            merge_functions(T1, Info, [H1 | Funs]);
         H1 > H2 ->
-            merge_module_functions(Edoc, T2, [H2 | Funs])
+            merge_functions(Edoc, T2, [H2 | Funs])
     end.
