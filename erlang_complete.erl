@@ -19,7 +19,7 @@ main([ModName]) ->
         error:undef -> []
     end,
     Funs = merge_functions(Edoc, Info),
-    lists:foreach(fun print_function/1, Funs);
+    lists:foreach(fun(Fun) -> print_function(Fun) end, Funs);
 main(_) ->
     bad_module.
 
