@@ -1,6 +1,6 @@
 #!/usr/bin/env escript
 
-main([ModuleName]) ->
+main([ModName]) ->
     code:add_path("ebin"),
     case file:consult("rebar.config") of
         {ok, Terms} ->
@@ -9,14 +9,14 @@ main([ModuleName]) ->
         _ ->
             ok
     end,
-    Module = erlang:list_to_atom(ModuleName),
-    try Module:module_info(exports) of
-        Functions ->
+    Mod = erlang:list_to_atom(ModName),
+    try Mod:module_info(exports) of
+        Funs ->
             lists:foreach(
-                fun({FunctionName, ArgumentsCount}) ->
-                        io:format("~s/~B~n", [FunctionName, ArgumentsCount])
+                fun({FunName, ArgsCount}) ->
+                        io:format("~s/~B~n", [FunName, ArgsCount])
                 end,
-                Functions)
+                Funs)
     catch
         error:undef ->
             bad_module
