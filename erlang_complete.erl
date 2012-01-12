@@ -12,7 +12,7 @@ main([ModName]) ->
     Mod = erlang:list_to_atom(ModName),
     Edoc = try module_edoc(Mod)
     catch
-        throw:undef -> [] % XXX: throw from module_edoc/1
+        throw:bad_module -> []
     end,
     Info = try module_info2(Mod)
     catch
@@ -27,11 +27,6 @@ module_edoc(_Mod) ->
     [].
 module_info2(Mod) ->
     lists:keysort(1, Mod:module_info(exports)).
-
-print_function({Name, Arity}) ->
-    io:format("~s/~B~n", [Name, Arity]);
-print_function({Name, Args, Return}) ->
-    io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
 
 merge_functions(Edoc, Info) ->
     merge_functions(Edoc, Info, []).
@@ -53,3 +48,8 @@ merge_functions(Edoc, Info, Funs) ->
         H1 > H2 ->
             merge_functions(Edoc, T2, [H2 | Funs])
     end.
+
+print_function({Name, Arity}) ->
+    io:format("~s/~B~n", [Name, Arity]);
+print_function({Name, Args, Return}) ->
+    io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
