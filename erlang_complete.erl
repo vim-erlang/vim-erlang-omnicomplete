@@ -23,3 +23,28 @@ main([ModName]) ->
     end;
 main(_) ->
     bad_module.
+
+
+
+
+
+merge_module_functions(Edoc, ModInfo) ->
+    merge_module_functions(Edoc, ModInfo, []).
+
+merge_module_functions([], [], Funs) ->
+    lists:reverse(Funs);
+merge_module_functions([], ModInfo, Funs) ->
+    lists:reverse(Funs, ModInfo);
+merge_module_functions(Edoc, [], Funs) ->
+    lists:reverse(Funs, Edoc);
+merge_module_functions(Edoc, ModInfo, Funs) ->
+    [H1 | T1] = Edoc,
+    [H2 | T2] = ModInfo,
+    if
+        H1 == H2 ->
+            merge_module_functions(T1, T2, [H1 | Funs]);
+        H1 < H2 ->
+            merge_module_functions(T1, ModInfo, [H1 | Funs]);
+        H1 > H2 ->
+            merge_module_functions(Edoc, T2, [H2 | Funs])
+    end.
