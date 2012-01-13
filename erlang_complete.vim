@@ -10,6 +10,10 @@
 " Completion program path
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
+if !exists('g:erlang_omni_cache')
+	let g:erlang_omni_cache = 1
+endif
+
 " Modules cache used to speed up the completion
 let s:modules_cache = {}
 
@@ -107,7 +111,7 @@ function s:ErlangFindExternalFunc(module, base)
 
 			" Populate the cache only when iterating over all the
 			" module functions (i.e. no prefix for the completion)
-			if a:base == ''
+			if g:erlang_omni_cache && a:base == ''
 				if !has_key(s:modules_cache, a:module)
 					let s:modules_cache[a:module] = [field]
 				else
