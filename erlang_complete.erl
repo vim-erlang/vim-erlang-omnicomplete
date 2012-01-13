@@ -1,5 +1,7 @@
 #!/usr/bin/env escript
 
+-include_lib("xmerl/include/xmerl.hrl").
+
 main([ModName]) ->
     code:add_path("ebin"),
     case file:consult("rebar.config") of
@@ -20,8 +22,8 @@ main([ModName]) ->
     catch
         error:undef -> []
     end,
-    Funs = merge_functions(Edoc, Info),
-    lists:foreach(fun(Fun) -> print_function(Fun) end, Funs);
+    FunSpecs = merge_functions(Edoc, Info),
+    lists:foreach(fun(Fun) -> print_function(Fun) end, FunSpecs);
 main(_) ->
     bad_module.
 
@@ -58,8 +60,6 @@ print_function({Name, Args, Return}) ->
 %%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 %%% ---------------------------------------------------------------------------
 
--include_lib("xmerl/include/xmerl.hrl").
-
 module_edoc(Mod) ->
     File = case filename:find_src(Mod) of
         {error, _} ->
@@ -69,41 +69,40 @@ module_edoc(Mod) ->
     end,
     {_, Doc} = edoc:get_doc(File),
     Funs = xmerl_xpath:string("/module/functions/function", Doc),
-    FunsInfo = lists:map(fun(Fun) -> inspect_function(Fun) end, Funs),
-    lists:keysort(1, FunsInfo).
+    FunSpecs = lists:map(fun(Fun) -> analyze_function(Fun) end, Funs),
+    lists:keysort(1, FunSpecs).
 
-inspect_function(Fun) ->
+analyze_function(Fun) ->
     Name = get_attribute(Fun, "name"),
     Args0 = xmerl_xpath:string("typespec/type/fun/argtypes/type", Fun),
     Args = lists:map(fun(Arg) -> get_attribute(Arg, "name") end, Args0),
-    Return = inspect_function_return(Fun),
+    Return = analyze_return(Fun),
     {Name, Args, Return}.
 
-inspect_function_return(Fun) ->
+analyze_return(Fun) ->
     [ReturnType] = xmerl_xpath:string("typespec/type/fun/type/*", Fun),
-    simplify_return_type(xmerl_lib:simplify_element(ReturnType)).
+    simplify_return(xmerl_lib:simplify_element(ReturnType)).
 
-simplify_return_type({type, _, [Type]}) ->
-    simplify_return_type(Type);
-simplify_return_type({tuple, _, Types}) ->
-    Elems = lists:map(fun(Type) -> simplify_return_type(Type) end, Types),
+simplify_return({type, _, [Type]}) ->
+    simplify_return(Type);
+simplify_return({tuple, _, Types}) ->
+    Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     "{" ++ string:join(Elems, ", ") ++ "}";
-simplify_return_type({list, _, Types}) ->
-    Elems = lists:map(fun(Type) -> simplify_return_type(Type) end, Types),
+simplify_return({list, _, Types}) ->
+    Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     "[" ++ string:join(Elems, ", ") ++ "]";
-simplify_return_type({typevar, [{name, Name}], _}) ->
+simplify_return({typevar, [{name, Name}], _}) ->
     Name;
-simplify_return_type({atom, [{value, Val}], _}) ->
+simplify_return({atom, [{value, Val}], _}) ->
     Val;
-simplify_return_type({abstype, _, [Type]}) ->
+simplify_return({abstype, _, [Type]}) ->
     {erlangName, [{name, Name}], []} = Type,
     Name ++ "()";
-simplify_return_type({union, _, Types}) ->
-    Elems = lists:map(fun(Type) -> simplify_return_type(Type) end, Types),
+simplify_return({union, _, Types}) ->
+    Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     string:join(Elems, " | ");
-simplify_return_type(_) ->
-    io:format("BIG SHIT SOMETIME HAPPENS!~n"),
-    erlang:halt().
+simplify_return(_) ->
+    "ERROR ERROR ERROR!". % XXX XXX XXX
 
 get_attribute(Elem, AttrName) ->
     [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
