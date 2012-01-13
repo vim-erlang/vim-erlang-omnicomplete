@@ -98,19 +98,6 @@ endfunction
 
 " Find external function names
 function s:ErlangFindExternalFunc(module, base)
-	" If it is a local module, try to compile it when the .beam
-	" doesn't exist or is old
-	if filereadable(a:module . '.erl')
-		if !filereadable(a:module . '.beam') ||
-				\ getftime(a:module . '.erl') > getftime(a:module . '.beam')
-			if has_key(s:modules_cache, a:module)
-				call remove(s:modules_cache, a:module)
-			endif
-			silent execute '!erlc' a:module . '.erl' '>/dev/null' '2>/dev/null'
-			redraw!
-		endif
-	endif
-
 	" If the module is cached, load its functions
 	if has_key(s:modules_cache, a:module)
 		for field_cache in get(s:modules_cache, a:module)
