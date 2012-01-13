@@ -11,16 +11,20 @@ main([ModName]) ->
         _ ->
             ok
     end,
-    Mod = erlang:list_to_atom(ModName),
+    Mod = list_to_atom(ModName),
     Edoc = try
         module_edoc(Mod)
     catch
-        throw:bad_module -> []
+        throw:not_found ->
+            io:format("*** CATCH EDOC~n"), % XXX
+            []
     end,
     Info = try
         module_info2(Mod)
     catch
-        error:undef -> []
+        error:undef ->
+            io:format("*** CATCH INFO~n"), % XXX
+            []
     end,
     FunSpecs = merge_functions(Edoc, Info),
     lists:foreach(fun(Fun) -> print_function(Fun) end, FunSpecs);
@@ -63,7 +67,13 @@ print_function({Name, Args, Return}) ->
 module_edoc(Mod) ->
     File = case filename:find_src(Mod) of
         {error, _} ->
-            throw(bad_module);
+            BeamFile = atom_to_list(Mod) ++ ".beam",
+            case code:where_is_file(BeamFile) of
+                non_existing ->
+                    throw(not_found);
+                BeamPath ->
+                    beam_to_src_path(BeamPath)
+            end;
         {File0, _} ->
             File0 ++ ".erl"
     end,
@@ -71,6 +81,27 @@ module_edoc(Mod) ->
     Funs = xmerl_xpath:string("/module/functions/function", Doc),
     FunSpecs = map_functions(fun(Fun) -> analyze_function(Fun) end, Funs),
     lists:keysort(1, FunSpecs).
+
+beam_to_src_path(BeamPath) ->
+    PathParts = filename:split(BeamPath),
+    {Dirs, [BeamFile]} = lists:split(length(PathParts) - 1, PathParts),
+    {Dirs2, [DirsLast]} = lists:split(length(Dirs) - 1, Dirs),
+    case filename:pathtype(BeamPath) of
+        absolute ->
+            Dirs3 = case DirsLast of
+                "ebin" ->
+                    Dirs2 ++ ["src"];
+                _ ->
+                    Dirs
+            end;
+        relative ->
+            Dirs3 = Dirs
+    end,
+    filename:join(Dirs3 ++ [beam_to_src_file(BeamFile)]).
+
+beam_to_src_file(BeamFile) ->
+    [ModName, "beam"] = string:tokens(BeamFile, "."),
+    ModName ++ ".erl".
 
 map_functions(_, []) ->
     [];
