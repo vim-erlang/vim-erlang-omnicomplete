@@ -35,7 +35,6 @@ module_info2(Mod) ->
 merge_functions(Edoc, Info) ->
     merge_functions(Edoc, Info, []).
 
-%% FIXME FIXME FIXME
 merge_functions([], [], Funs) ->
     lists:reverse(Funs);
 merge_functions([], Info, Funs) ->
@@ -43,14 +42,14 @@ merge_functions([], Info, Funs) ->
 merge_functions(Edoc, [], Funs) ->
     lists:reverse(Funs, Edoc);
 merge_functions(Edoc, Info, Funs) ->
-    [H1 | T1] = Edoc,
-    [H2 | T2] = Info,
+    [H1 = {K1, _, _} | T1] = Edoc,
+    [H2 = {K2, _} | T2] = Info,
     if
-        H1 == H2 ->
+        K1 == K2 ->
             merge_functions(T1, T2, [H1 | Funs]);
-        H1 < H2 ->
+        K1 < K2 ->
             merge_functions(T1, Info, [H1 | Funs]);
-        H1 > H2 ->
+        K1 > K2 ->
             merge_functions(Edoc, T2, [H2 | Funs])
     end.
 
@@ -119,7 +118,7 @@ map_functions(F, [H | T]) ->
     end.
 
 analyze_function(Fun) ->
-    Name = get_attribute(Fun, "name"),
+    Name = list_to_atom(get_attribute(Fun, "name")),
     Args0 = xmerl_xpath:string("typespec/type/fun/argtypes/type", Fun),
     Args = lists:map(fun(Arg) -> get_attribute(Arg, "name") end, Args0),
     Return = analyze_return(Fun),
