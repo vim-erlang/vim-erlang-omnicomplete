@@ -107,6 +107,9 @@ simplify_return({tuple, _, Types}) ->
 simplify_return({list, _, Types}) ->
     Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     "[" ++ string:join(Elems, ", ") ++ "]";
+simplify_return({paren, _, Types}) ->
+    Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
+    "(" ++ string:join(Elems, ", ") ++ ")";
 simplify_return({union, _, Types}) ->
     Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     string:join(Elems, " | ");
