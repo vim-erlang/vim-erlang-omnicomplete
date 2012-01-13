@@ -10,11 +10,13 @@ main([ModName]) ->
             ok
     end,
     Mod = erlang:list_to_atom(ModName),
-    Edoc = try module_edoc(Mod)
+    Edoc = try
+        module_edoc(Mod)
     catch
         throw:bad_module -> []
     end,
-    Info = try module_info2(Mod)
+    Info = try
+        module_info2(Mod)
     catch
         error:undef -> []
     end,
