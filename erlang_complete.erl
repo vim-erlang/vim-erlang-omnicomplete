@@ -29,39 +29,6 @@ main([ModName]) ->
 main(_) ->
     bad_module.
 
-module_info2(Mod) ->
-    lists:keysort(1, Mod:module_info(exports)).
-
-merge_functions(Edoc, Info) ->
-    merge_functions(Edoc, Info, []).
-
-merge_functions([], [], Funs) ->
-    lists:reverse(Funs);
-merge_functions([], Info, Funs) ->
-    lists:reverse(Funs, Info);
-merge_functions(Edoc, [], Funs) ->
-    lists:reverse(Funs, Edoc);
-merge_functions(Edoc, Info, Funs) ->
-    [H1 = {K1, _, _} | T1] = Edoc,
-    [H2 = {K2, _} | T2] = Info,
-    if
-        K1 == K2 ->
-            merge_functions(T1, T2, [H1 | Funs]);
-        K1 < K2 ->
-            merge_functions(T1, Info, [H1 | Funs]);
-        K1 > K2 ->
-            merge_functions(Edoc, T2, [H2 | Funs])
-    end.
-
-print_function({Name, Arity}) ->
-    io:format("~s/~B~n", [Name, Arity]);
-print_function({Name, Args, Return}) ->
-    io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
-
-%%% ---------------------------------------------------------------------------
-%%% XXX: Poner encima de module_info2/1 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-%%% ---------------------------------------------------------------------------
-
 module_edoc(Mod) ->
     File = case filename:find_src(Mod) of
         {error, _} ->
@@ -126,8 +93,8 @@ analyze_function(Fun) ->
 
 analyze_return(Fun) ->
     case xmerl_xpath:string("typespec/type/fun/type/*", Fun) of
-        [ReturnType] ->
-            simplify_return(xmerl_lib:simplify_element(ReturnType));
+        [Return] ->
+            simplify_return(xmerl_lib:simplify_element(Return));
         [] ->
             throw(no_spec)
     end.
@@ -140,17 +107,47 @@ simplify_return({tuple, _, Types}) ->
 simplify_return({list, _, Types}) ->
     Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     "[" ++ string:join(Elems, ", ") ++ "]";
-simplify_return({typevar, [{name, Name}], _}) ->
-    Name;
-simplify_return({atom, [{value, Val}], _}) ->
-    Val;
-simplify_return({abstype, _, [Type]}) ->
-    {erlangName, [{name, Name}], []} = Type,
-    Name ++ "()";
 simplify_return({union, _, Types}) ->
     Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
-    string:join(Elems, " | ").
+    string:join(Elems, " | ");
+simplify_return({atom, [{value, Val}], _}) ->
+    Val;
+simplify_return({typevar, [{name, Name}], _}) ->
+    Name;
+simplify_return({abstype, _, [Type]}) ->
+    {erlangName, Attrs, _} = Type,
+    Name = proplists:get_value(name, Attrs),
+    Name ++ "()".
 
 get_attribute(Elem, AttrName) ->
     [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
     Attr#xmlAttribute.value.
+
+module_info2(Mod) ->
+    lists:keysort(1, Mod:module_info(exports)).
+
+merge_functions(Edoc, Info) ->
+    merge_functions(Edoc, Info, []).
+
+merge_functions([], [], Funs) ->
+    lists:reverse(Funs);
+merge_functions([], Info, Funs) ->
+    lists:reverse(Funs, Info);
+merge_functions(Edoc, [], Funs) ->
+    lists:reverse(Funs, Edoc);
+merge_functions(Edoc, Info, Funs) ->
+    [H1 = {K1, _, _} | T1] = Edoc,
+    [H2 = {K2, _} | T2] = Info,
+    if
+        K1 == K2 ->
+            merge_functions(T1, T2, [H1 | Funs]);
+        K1 < K2 ->
+            merge_functions(T1, Info, [H1 | Funs]);
+        K1 > K2 ->
+            merge_functions(Edoc, T2, [H2 | Funs])
+    end.
+
+print_function({Name, Arity}) ->
+    io:format("~s/~B~n", [Name, Arity]);
+print_function({Name, Args, Return}) ->
+    io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
