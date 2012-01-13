@@ -58,8 +58,7 @@ print_function({Name, Args, Return}) ->
 
 -include_lib("xmerl/include/xmerl.hrl").
 
-module_edoc(ModName) ->
-    Mod = list_to_atom(ModName),
+module_edoc(Mod) ->
     File = case filename:find_src(Mod) of
         {error, _} ->
             throw(bad_module);
@@ -68,7 +67,7 @@ module_edoc(ModName) ->
     end,
     {_, Doc} = edoc:get_doc(File),
     Funs = xmerl_xpath:string("/module/functions/function", Doc),
-    FunsInfo = lists:map(fun inspect_function/1, Funs),
+    FunsInfo = lists:map(fun(Fun) -> inspect_function(Fun) end, Funs),
     lists:keysort(1, FunsInfo).
 
 inspect_function(Fun) ->
@@ -85,10 +84,10 @@ inspect_function_return(Fun) ->
 simplify_return_type({type, _, [Type]}) ->
     simplify_return_type(Type);
 simplify_return_type({tuple, _, Types}) ->
-    Elems = lists:map(fun simplify_return_type/1, Types),
+    Elems = lists:map(fun(Type) -> simplify_return_type(Type) end, Types),
     "{" ++ string:join(Elems, ", ") ++ "}";
 simplify_return_type({list, _, Types}) ->
-    Elems = lists:map(fun simplify_return_type/1, Types),
+    Elems = lists:map(fun(Type) -> simplify_return_type(Type) end, Types),
     "[" ++ string:join(Elems, ", ") ++ "]";
 simplify_return_type({typevar, [{name, Name}], _}) ->
     Name;
@@ -98,7 +97,7 @@ simplify_return_type({abstype, _, [Type]}) ->
     {erlangName, [{name, Name}], []} = Type,
     Name ++ "()";
 simplify_return_type({union, _, Types}) ->
-    Elems = lists:map(fun simplify_return_type/1, Types),
+    Elems = lists:map(fun(Type) -> simplify_return_type(Type) end, Types),
     string:join(Elems, " | ");
 simplify_return_type(_) ->
     io:format("BIG SHIT SOMETIME HAPPENS!~n"),
