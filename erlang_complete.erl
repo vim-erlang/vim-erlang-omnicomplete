@@ -69,8 +69,18 @@ module_edoc(Mod) ->
     end,
     {_, Doc} = edoc:get_doc(File),
     Funs = xmerl_xpath:string("/module/functions/function", Doc),
-    FunSpecs = lists:map(fun(Fun) -> analyze_function(Fun) end, Funs),
+    FunSpecs = map_functions(fun(Fun) -> analyze_function(Fun) end, Funs),
     lists:keysort(1, FunSpecs).
+
+map_functions(_, []) ->
+    [];
+map_functions(F, [H | T]) ->
+    try
+        [F(H) | map_functions(F, T)]
+    catch
+        throw:no_spec ->
+            map_functions(F, T)
+    end.
 
 analyze_function(Fun) ->
     Name = get_attribute(Fun, "name"),
@@ -80,8 +90,12 @@ analyze_function(Fun) ->
     {Name, Args, Return}.
 
 analyze_return(Fun) ->
-    [ReturnType] = xmerl_xpath:string("typespec/type/fun/type/*", Fun),
-    simplify_return(xmerl_lib:simplify_element(ReturnType)).
+    case xmerl_xpath:string("typespec/type/fun/type/*", Fun) of
+        [ReturnType] ->
+            simplify_return(xmerl_lib:simplify_element(ReturnType));
+        [] ->
+            throw(no_spec)
+    end.
 
 simplify_return({type, _, [Type]}) ->
     simplify_return(Type);
