@@ -72,7 +72,13 @@ module_edoc(Mod) ->
                 non_existing ->
                     throw(not_found);
                 BeamPath ->
-                    beam_to_src_path(BeamPath)
+                    SrcPath = beam_to_src_path(BeamPath),
+                    case filelib:is_regular(SrcPath) of
+                        true ->
+                            SrcPath;
+                        false ->
+                            throw(not_found)
+                    end
             end;
         {File0, _} ->
             File0 ++ ".erl"
