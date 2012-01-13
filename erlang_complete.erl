@@ -100,9 +100,7 @@ simplify_return({abstype, _, [Type]}) ->
     Name ++ "()";
 simplify_return({union, _, Types}) ->
     Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
-    string:join(Elems, " | ");
-simplify_return(_) ->
-    "ERROR ERROR ERROR!". % XXX XXX XXX
+    string:join(Elems, " | ").
 
 get_attribute(Elem, AttrName) ->
     [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
