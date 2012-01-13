@@ -16,14 +16,12 @@ main([ModName]) ->
         module_edoc(Mod)
     catch
         throw:not_found ->
-            io:format("*** CATCH EDOC~n"), % XXX
             []
     end,
     Info = try
         module_info2(Mod)
     catch
         error:undef ->
-            io:format("*** CATCH INFO~n"), % XXX
             []
     end,
     FunSpecs = merge_functions(Edoc, Info),
@@ -37,6 +35,7 @@ module_info2(Mod) ->
 merge_functions(Edoc, Info) ->
     merge_functions(Edoc, Info, []).
 
+%% FIXME FIXME FIXME
 merge_functions([], [], Funs) ->
     lists:reverse(Funs);
 merge_functions([], Info, Funs) ->
@@ -61,7 +60,7 @@ print_function({Name, Args, Return}) ->
     io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
 
 %%% ---------------------------------------------------------------------------
-%%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+%%% XXX: Poner encima de module_info2/1 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 %%% ---------------------------------------------------------------------------
 
 module_edoc(Mod) ->
