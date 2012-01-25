@@ -27,7 +27,8 @@ main([ModName]) ->
     FunSpecs = merge_functions(Edoc, Info),
     lists:foreach(fun(Fun) -> print_function(Fun) end, FunSpecs);
 main(_) ->
-    bad_module.
+    io:format("Usage: ~s <module>~n", [escript:script_name()]),
+    halt(1).
 
 module_edoc(Mod) ->
     File = case filename:find_src(Mod) of
