@@ -121,7 +121,9 @@ simplify_return({typevar, [{name, Name}], _}) ->
 simplify_return({abstype, _, [Type]}) ->
     {erlangName, Attrs, _} = Type,
     Name = proplists:get_value(name, Attrs),
-    Name ++ "()".
+    Name ++ "()";
+simplify_return({nil, _, _}) ->
+    "[]".
 
 get_attribute(Elem, AttrName) ->
     [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
