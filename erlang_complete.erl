@@ -15,6 +15,8 @@ main([ModName]) ->
     Edoc = try
         module_edoc(Mod)
     catch
+        exit:error ->
+            [];
         throw:not_found ->
             []
     end,
