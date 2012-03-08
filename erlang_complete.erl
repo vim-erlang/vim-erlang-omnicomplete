@@ -20,9 +20,11 @@ main([ModName]) ->
     Edoc = try
         module_edoc(Mod)
     catch
-        exit:error ->
-            [];
         throw:not_found ->
+            [];
+        error:{badmatch, _} ->
+            [];
+        exit:error ->
             []
     end,
     Info = try
