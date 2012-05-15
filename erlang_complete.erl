@@ -133,6 +133,8 @@ simplify_return({paren, _, Types}) ->
 simplify_return({union, _, Types}) ->
     Elems = lists:map(fun(Type) -> simplify_return(Type) end, Types),
     string:join(Elems, " | ");
+simplify_return({integer, [{value, Val}], _}) ->
+    Val;
 simplify_return({atom, [{value, Val}], _}) ->
     Val;
 simplify_return({nil, _, _}) ->
