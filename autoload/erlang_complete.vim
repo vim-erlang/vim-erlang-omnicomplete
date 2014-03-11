@@ -53,7 +53,7 @@ function erlang_complete#Complete(findstart, base)
             return delimiter
         else
             let module = matchstr(line[:-2], '\<\k*\>$')
-            return s:ErlangFindExternalFunc(module, a:base)
+            return s:ErlangFindExternalFunc(module, a:base, expand('%:p'))
         endif
     endif
 
@@ -89,7 +89,7 @@ function s:ErlangFindNextNonBlank(lnum)
 endfunction
 
 " Find external function names
-function s:ErlangFindExternalFunc(module, base)
+function s:ErlangFindExternalFunc(module, base, currfile)
     " If the module is cached, load its functions
     if has_key(s:modules_cache, a:module)
         for field_cache in get(s:modules_cache, a:module)
@@ -101,7 +101,7 @@ function s:ErlangFindExternalFunc(module, base)
         return []
     endif
 
-    let functions = system(s:erlang_complete_file . ' ' . a:module)
+    let functions = system(s:erlang_complete_file . ' ' . a:module . ' ' . a:currfile)
     for function_spec in split(functions, '\n')
         if match(function_spec, a:base) == 0
             let function_name = matchstr(function_spec, a:base . '\w*')
