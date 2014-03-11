@@ -156,3 +156,7 @@ function s:ErlangFindLocalFunc(base)
 
     return []
 endfunction
+
+function erlang_complete#ClearAllCache()
+    let s:modules_cache = {}
+endfunction
