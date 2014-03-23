@@ -2,42 +2,129 @@
 
 -include_lib("xmerl/include/xmerl.hrl").
 
-main([ModName]) ->
-    case file:consult("rebar.config") of
-        {ok, Terms} ->
-            RebarLibDirs = proplists:get_value(lib_dirs, Terms, []),
-            lists:foreach(
-                fun(LibDir) ->
-                        code:add_pathsa(filelib:wildcard(LibDir ++ "/*/ebin"))
-                end, RebarLibDirs),
-            RebarDepsDir = proplists:get_value(deps_dir, Terms, "deps"),
-            code:add_pathsa(filelib:wildcard(RebarDepsDir ++ "/*/ebin"));
-        {error, _} ->
-            true
+main([ModString, CurrFile]) ->
+
+    Mod = list_to_atom(ModString),
+    Dir = filename:dirname(CurrFile),
+    AbsDir = filename:absname(Dir),
+
+    case read_rebar_config(AbsDir) of
+        {ok, {ConfigAbsDir, ConfigFileName, Terms}} ->
+            log("rebar.config read: ~s~n", [ConfigFileName]),
+            file:set_cwd(ConfigAbsDir),
+            apply_rebar_settings(Terms);
+        {error, not_found} ->
+            log("rebar.config not found.~n");
+        {error, {consult_error, ConfigFileName, Reason}} ->
+            log_error("rebar.config (~s) consult unsuccessful: ~p~n",
+                      [ConfigFileName, Reason])
     end,
+
     code:add_patha("ebin"),
-    Mod = list_to_atom(ModName),
-    Edoc = try
-        module_edoc(Mod)
-    catch
-        throw:not_found ->
-            [];
-        error:{badmatch, _} ->
-            [];
-        exit:error ->
-            []
-    end,
-    Info = try
-        module_info2(Mod)
-    catch
-        error:undef ->
-            []
-    end,
+
+    Edoc =
+        try
+            module_edoc(Mod)
+        catch
+            throw:not_found ->
+                [];
+            error:{badmatch, _} ->
+                [];
+            exit:error ->
+                []
+        end,
+
+    Info =
+        try
+            module_info2(Mod)
+        catch
+            error:undef ->
+                []
+        end,
+
     FunSpecs = merge_functions(Edoc, Info),
-    lists:foreach(fun(Fun) -> print_function(Fun) end, FunSpecs);
+    [print_function(Fun) || Fun <- FunSpecs ],
+
+    ok;
 main(_) ->
     io:format("Usage: ~s <module>~n", [escript:script_name()]),
     halt(1).
+
+%%------------------------------------------------------------------------------
+%% @doc Log the given entry if we are in verbose mode.
+%% @end
+%%------------------------------------------------------------------------------
+-spec log(io:format()) -> ok.
+log(Format) ->
+    log(Format, []).
+
+-spec log(io:format(), [term()]) -> ok.
+log(Format, Data) ->
+    case get(verbose) of
+        true ->
+            io:format(Format, Data);
+        _ ->
+            ok
+    end.
+
+%%------------------------------------------------------------------------------
+%% @doc Log the given error.
+%% @end
+%%------------------------------------------------------------------------------
+-spec log_error(io:format(), [term()]) -> ok.
+log_error(Format, Data) ->
+    io:format(standard_error, Format, Data).
+
+%%------------------------------------------------------------------------------
+%% @doc Find and read the rebar config appropriate for the given path.
+%%
+%% This function traverses the directory tree upward until it finds
+%% "rebar.config". Afterwards it reads the terms in that file and returns them.
+%% @end
+%%------------------------------------------------------------------------------
+-spec read_rebar_config(AbsDir :: string()) -> {ok, Result} |
+                                               {error, Reason}
+          when Result :: {ConfigAbsDir :: string(),
+                          ConfigFileName :: string(),
+                          ConfigTerms :: [term()]},
+               Reason :: not_found |
+                         {consult_error,
+                          ConfigFileName :: string(),
+                          ConsultError},
+               ConsultError :: atom() |
+                               {Line :: integer(),
+                                Mod :: module(),
+                                Term :: term()}.
+read_rebar_config(AbsDir) ->
+    ConfigFileName = filename:join(AbsDir, "rebar.config"),
+    case filelib:is_file(ConfigFileName) of
+        true ->
+            case file:consult(ConfigFileName) of
+                {ok, ConfigTerms} ->
+                    {ok, {AbsDir, ConfigFileName, ConfigTerms}};
+                {error, ConsultReason} ->
+                    {error, {consult_error, ConfigFileName, ConsultReason}}
+            end;
+        false ->
+            case AbsDir of
+                "/" ->
+                    {error, not_found};
+                _ ->
+                    read_rebar_config(filename:dirname(AbsDir))
+            end
+    end.
+
+-spec apply_rebar_settings(ConfigTerms :: [term()]) -> ok.
+apply_rebar_settings(Terms) ->
+    % deps -> code path
+    RebarDepsDir = proplists:get_value(deps_dir, Terms, "deps"),
+    code:add_pathsa(filelib:wildcard(RebarDepsDir ++ "/*/ebin")),
+
+    % sub_dirs -> code_path
+    [ code:add_pathsa(filelib:wildcard(SubDir ++ "/ebin"))
+      || SubDir <- proplists:get_value(sub_dirs, Terms, []) ],
+
+    ok.
 
 module_edoc(Mod) ->
     File = case filename:find_src(Mod) of

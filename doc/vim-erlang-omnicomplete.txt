@@ -1,0 +1,53 @@
+*vim-erlang-omnicomplete.txt* Erlang autocompletion
+
+CONTENTS                                             *vim-erlang-omnicomplete*
+
+    1. Introduction.....................|vim-erlang-omnicomplete-intro|
+    2. Credits..........................|vim-erlang-omnicomplete-credits|
+    3. Contributing.....................|vim-erlang-omnicomplete-contributing|
+
+==============================================================================
+INTRODUCTION                                   *vim-erlang-omnicomplete-intro*
+
+vim-erlang-omnicomplete is an Erlang autocompletion plugin (or "omni
+completion" in Vim's terminology).
+
+Vim's autocompletion is accessible by hitting |i_CTRL-X_CTRL-O|. After
+installing this plugin, if an Erlang file is edited, these keys will provide
+Erlang autocompletion.
+
+The plugin completes the followings:
+
+1. Local functions.
+2. Global function, e.g. "lists:mem" is completed as "lists:member(".
+
+If you use rebar, the plugin will find the rebar.config file corresponding to
+the module being edited, and uses the directories in rebar.config to find the
+possible module and function names. The plugin does not support rebar.script
+files though.
+
+==============================================================================
+CREDITS                                      *vim-erlang-omnicomplete-credits*
+
+Developed by the vim-erlang community. Distributed under Vim's |license|.
+
+vim-erlang-omnicomplete's original source code comes from vimerl
+(https://github.com/jimenezrick/vimerl).
+
+Author:       Oscar Hellström <oscar@oscarh.net>
+Contributors: Pawel 'kTT' Salata (http://github.com/kTT)
+              Ricardo Catalinas Jiménez <jimenezrick@gmail.com>
+              Eduardo Lopez (http://github.com/tapichu)
+              Ignas Vyšniauskas (https://github.com/yfyf)
+              Adam Rutkowski <hq@mtod.org>
+              Csaba Hoch <csaba.hoch@gmail.com>
+License:      Vim License (see |license|)
+
+==============================================================================
+CONTRIBUTING                            *vim-erlang-omnicomplete-contributing*
+
+Bug reports, suggestions and improvements encouraged at the project's GitHub:
+
+    https://github.com/vim-erlang/vim-erlang-omnicomplete
+
+==============================================================================
