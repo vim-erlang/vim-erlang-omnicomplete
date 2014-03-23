@@ -2,53 +2,85 @@
 
 -include_lib("xmerl/include/xmerl.hrl").
 
-main([ModString, CurrFile]) ->
+%%------------------------------------------------------------------------------
+%% @doc Print completions.
+%% @end
+%%------------------------------------------------------------------------------
+-spec main([string()]) -> no_return().
+main([]) ->
+    io:format("Usage: see --help.~n"),
+    halt(2);
+main(Args) ->
+    PositionalParams = parse_args(Args),
+    case PositionalParams of
+        ["list-modules"] ->
+            run(list_modules);
+        ["list-functions", ModuleString] ->
+            run({list_functions, list_to_atom(ModuleString)});
+        _ ->
+            log_error("Erroneous parameters: ~p", [PositionalParams]),
+            halt(2)
+    end.
 
-    Mod = list_to_atom(ModString),
-    Dir = filename:dirname(CurrFile),
-    AbsDir = filename:absname(Dir),
+%%------------------------------------------------------------------------------
+%% @doc Parse the argument list.
+%%
+%% Put the options into the process dictionary and return the list of files.
+%% @end
+%%------------------------------------------------------------------------------
+-spec parse_args(Args :: string()) -> [PositionalParam :: string()].
+parse_args(Args) ->
+    lists:reverse(parse_args(Args, [])).
 
-    case read_rebar_config(AbsDir) of
-        {ok, {ConfigAbsDir, ConfigFileName, Terms}} ->
-            log("rebar.config read: ~s~n", [ConfigFileName]),
-            file:set_cwd(ConfigAbsDir),
-            apply_rebar_settings(Terms);
-        {error, not_found} ->
-            log("rebar.config not found.~n");
-        {error, {consult_error, ConfigFileName, Reason}} ->
-            log_error("rebar.config (~s) consult unsuccessful: ~p~n",
-                      [ConfigFileName, Reason])
-    end,
+-spec parse_args(Args :: string(), Acc :: [PositionalParam :: string()]) ->
+          [PositionalParam :: string()].
+parse_args([], Acc) ->
+    Acc;
+parse_args([Help|_], _Acc) when Help == "-h";
+                                Help == "--help" ->
+    print_help(),
+    halt(0);
+parse_args([Verbose|OtherArgs], Acc) when Verbose == "-v";
+                                          Verbose == "--verbose" ->
+    put(verbose, true),
+    log("Verbose mode on.~n"),
+    parse_args(OtherArgs, Acc);
+parse_args(["--basedir", BaseDir|OtherArgs], Acc) ->
+    put(basedir, BaseDir),
+    parse_args(OtherArgs, Acc);
+parse_args(["--basedir"], _Acc) ->
+    log_error("Argument needed after '--basedir'.~n", []),
+    halt(2);
+parse_args(["--"|PosPars], Acc) ->
+    PosPars ++ Acc;
+parse_args([[$-|_] = Arg|_], _Acc) ->
+    log_error("Unknown option: ~s~n", [Arg]),
+    halt(2);
+parse_args([PosPar|OtherArgs], Acc) ->
+    parse_args(OtherArgs, [PosPar|Acc]).
 
-    code:add_patha("ebin"),
+%%------------------------------------------------------------------------------
+%% @doc Print the script's help text and exit.
+%% @end
+%%------------------------------------------------------------------------------
+-spec print_help() -> ok.
+print_help() ->
+    Text =
+"Usage: erlang_complete.erl [options] [--] list-modules
+        erlang_complete.erl [options] [--] list-functions MODULE
 
-    Edoc =
-        try
-            module_edoc(Mod)
-        catch
-            throw:not_found ->
-                [];
-            error:{badmatch, _} ->
-                [];
-            exit:error ->
-                []
-        end,
+Description:
+  erlang_complete lists all modules or all functions of a module.
 
-    Info =
-        try
-            module_info2(Mod)
-        catch
-            error:undef ->
-                []
-        end,
-
-    FunSpecs = merge_functions(Edoc, Info),
-    [print_function(Fun) || Fun <- FunSpecs ],
-
-    ok;
-main(_) ->
-    io:format("Usage: ~s <module>~n", [escript:script_name()]),
-    halt(1).
+Options:
+  --            Process all remaining parameters as filenames.
+  -h, --help    Print help.
+  -v, --verbose Verbose output.
+  --basedir DIR
+                When searching for rebar.config files, the search will start
+                from this directory.
+",
+    io:format(Text).
 
 %%------------------------------------------------------------------------------
 %% @doc Log the given entry if we are in verbose mode.
@@ -75,53 +107,128 @@ log(Format, Data) ->
 log_error(Format, Data) ->
     io:format(standard_error, Format, Data).
 
+
 %%------------------------------------------------------------------------------
-%% @doc Find and read the rebar config appropriate for the given path.
+%% @doc Complete the given query.
 %%
-%% This function traverses the directory tree upward until it finds
-%% "rebar.config". Afterwards it reads the terms in that file and returns them.
+%% This function sets the code paths too.
 %% @end
 %%------------------------------------------------------------------------------
--spec read_rebar_config(AbsDir :: string()) -> {ok, Result} |
-                                               {error, Reason}
-          when Result :: {ConfigAbsDir :: string(),
-                          ConfigFileName :: string(),
-                          ConfigTerms :: [term()]},
-               Reason :: not_found |
-                         {consult_error,
-                          ConfigFileName :: string(),
-                          ConsultError},
-               ConsultError :: atom() |
-                               {Line :: integer(),
-                                Mod :: module(),
-                                Term :: term()}.
-read_rebar_config(AbsDir) ->
+-spec run(list_modules) -> ok;
+         ({list_functions, Module :: atom()}) -> ok.
+run(Target) ->
+
+    AbsDir =
+        case get(basedir) of
+            undefined ->
+                {ok, Cwd} = file:get_cwd(),
+                Cwd;
+            BaseDir ->
+                filename:absname(BaseDir)
+        end,
+
+    process_rebar_configs(AbsDir),
+    code:add_patha(absname(AbsDir, "ebin")),
+    run2(Target).
+
+
+%%------------------------------------------------------------------------------
+%% @doc Complete the given query.
+%%
+%% This function assumes that the code paths are all set.
+%% @end
+%%------------------------------------------------------------------------------
+-spec run2(list_modules) -> ok;
+          ({list_functions, Module :: atom()}) -> ok.
+run2(list_modules) ->
+    Modules = [filename:basename(File, ".beam")
+               || Dir <- code:get_path(),
+                  File <- filelib:wildcard(filename:join(Dir, "*.beam"))],
+    [io:format("~s\n", [Mod]) || Mod <- lists:sort(Modules)],
+    ok;
+
+run2({list_functions, Mod}) ->
+
+    Edoc =
+        try
+            module_edoc(Mod)
+        catch
+            throw:not_found ->
+                [];
+            error:{badmatch, _} ->
+                [];
+            exit:error ->
+                []
+        end,
+
+    Info =
+        try
+            module_info2(Mod)
+        catch
+            error:undef ->
+                []
+        end,
+
+    FunSpecs = merge_functions(Edoc, Info),
+    [print_function(Fun) || Fun <- FunSpecs ],
+    ok.
+
+%%------------------------------------------------------------------------------
+%% @doc Find, read and apply the rebar config files appropriate for the given
+%% path.
+%%
+%% This function traverses the directory tree upward until it finds
+%% the root directory. It finds all rebar.config files along the way and applies
+%% all of them (e.g. the dependency directory in all of them is added to the
+%% code path). It returns the options in the first rebar.config file (e.g. the
+%% one that is the closest to the file to be compiled).
+%% @end
+%%------------------------------------------------------------------------------
+-spec process_rebar_configs(string()) -> ok | error.
+process_rebar_configs(AbsDir) ->
     ConfigFileName = filename:join(AbsDir, "rebar.config"),
-    case filelib:is_file(ConfigFileName) of
-        true ->
-            case file:consult(ConfigFileName) of
-                {ok, ConfigTerms} ->
-                    {ok, {AbsDir, ConfigFileName, ConfigTerms}};
-                {error, ConsultReason} ->
-                    {error, {consult_error, ConfigFileName, ConsultReason}}
-            end;
-        false ->
-            case AbsDir of
-                "/" ->
-                    {error, not_found};
-                _ ->
-                    read_rebar_config(filename:dirname(AbsDir))
-            end
+
+    Res =
+        case filelib:is_file(ConfigFileName) of
+            true ->
+                case file:consult(ConfigFileName) of
+                    {ok, ConfigTerms} ->
+                        log("rebar.config read: ~s~n", [ConfigFileName]),
+                        process_rebar_config(AbsDir, ConfigTerms);
+                    {error, Reason} ->
+                        log_error("rebar.config consult unsuccessful: ~p: ~p~n",
+                                  [ConfigFileName, Reason]),
+                        error
+                end;
+            false ->
+                ok
+        end,
+
+    case {Res, AbsDir} of
+        {error, _} ->
+            error;
+        {_, "/"} ->
+            ok;
+        {_, _} ->
+            process_rebar_configs(filename:dirname(AbsDir))
     end.
 
--spec apply_rebar_settings(ConfigTerms :: [term()]) -> ok.
-apply_rebar_settings(Terms) ->
+%%------------------------------------------------------------------------------
+%% @doc Apply a rebar.config file.
+%%
+%% This function adds the directories in the rebar.config file to the code path
+%% and returns and compilation options to be used when compiling the file.
+%% @end
+%%------------------------------------------------------------------------------
+-spec process_rebar_config(Dir :: string(), ConfigTerms :: [term()]) ->
+          [Option :: term()].
+process_rebar_config(Dir, Terms) ->
     % deps -> code path
     RebarDepsDir = proplists:get_value(deps_dir, Terms, "deps"),
-    code:add_pathsa(filelib:wildcard(RebarDepsDir ++ "/*/ebin")),
+    code:add_pathsa(filelib:wildcard(absname(Dir, RebarDepsDir) ++ "/*/ebin")),
 
     % sub_dirs -> code_path
-    [ code:add_pathsa(filelib:wildcard(SubDir ++ "/ebin"))
+    [ code:add_pathsa(filelib:wildcard(absname(Dir, SubDir) ++ "/ebin"))
       || SubDir <- proplists:get_value(sub_dirs, Terms, []) ],
 
     ok.
@@ -259,3 +366,18 @@ print_function({Name, Arity}) ->
     io:format("~s/~B~n", [Name, Arity]);
 print_function({Name, Args, Return}) ->
     io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
+
+%%------------------------------------------------------------------------------
+%% @doc Return the absolute name of the file which is in the given directory.
+%%
+%% Example:
+%%
+%% - cwd = "/home/my"
+%% - Dir = "projects/erlang"
+%% - Filename = "rebar.config"
+%% - Result: "/home/my/projects/erlang/rebar.config"
+%% @end
+%%------------------------------------------------------------------------------
+-spec absname(Dir :: string(), Filename :: string()) -> string().
+absname(Dir, Filename) ->
+    filename:absname(filename:join(Dir, Filename)).

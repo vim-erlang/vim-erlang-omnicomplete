@@ -23,21 +23,15 @@ let s:erlang_external_func_beg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
 let s:erlang_blank_line        = '^\s*\(%.*\)\?$'
 
 " Main function for completion
+"
+" See ":help complete-functions" for what the function should return.
 function erlang_complete#Complete(findstart, base)
     let lnum = line('.')
     let column = col('.')
     let line = strpart(getline('.'), 0, column - 1)
 
-    " 1) Check if the char to the left of us are part of a function call
-    "
-    " Nothing interesting is written at the char just before the cursor
-    " This means _anything_ could be started here
-    " In this case, keyword completion should probably be used,
-    " for now we'll only try and complete local functions.
-    "
-    " TODO: Examine if we can stare Identifiers end complete on them
-    " Is this worth it? Is /completion/ of a "blank" wanted? Can we consider
-    " `(' interesting and check if we are in a function call etc.?
+    " 1) If the char to the left of us is not the part of a function call, the
+    " user probably wants to type a local function, a module or a BIF
     if line[column - 2] !~ '[0-9A-Za-z:_-]'
         if a:findstart
             return column
@@ -53,7 +47,7 @@ function erlang_complete#Complete(findstart, base)
             return delimiter
         else
             let module = matchstr(line[:-2], '\<\k*\>$')
-            return s:ErlangFindExternalFunc(module, a:base, expand('%:p'))
+            return s:ErlangFindExternalFunc(module, a:base)
         endif
     endif
 
@@ -89,7 +83,7 @@ function s:ErlangFindNextNonBlank(lnum)
 endfunction
 
 " Find external function names
-function s:ErlangFindExternalFunc(module, base, currfile)
+function s:ErlangFindExternalFunc(module, base)
     " If the module is cached, load its functions
     if has_key(s:modules_cache, a:module)
         for field_cache in get(s:modules_cache, a:module)
@@ -101,7 +95,9 @@ function s:ErlangFindExternalFunc(module, base, currfile)
         return []
     endif
 
-    let functions = system(s:erlang_complete_file . ' ' . a:module . ' ' . a:currfile)
+    let functions = system(s:erlang_complete_file .
+                          \' list-functions ' . a:module .
+                          \' --basedir ' .  expand('%:p:h'))
     for function_spec in split(functions, '\n')
         if match(function_spec, a:base) == 0
             let function_name = matchstr(function_spec, a:base . '\w*')
@@ -140,26 +136,45 @@ function s:ErlangFindLocalFunc(base)
     let lnum = s:ErlangFindNextNonBlank(1)
 
     if "" == a:base
-        let base = '\w' " Used to match against word symbol
+        let base = '^\w' " Used to match against word symbol
     else
-        let base = a:base
+        let base = '^' . a:base
     endif
 
     while 0 != lnum && !complete_check()
         let line = getline(lnum)
-        let function_name = matchstr(line, '^' . base . '[0-9A-Za-z_-]\+(\@=')
+        let function_name = matchstr(line, base . '[0-9A-Za-z_-]\+(\@=')
         if function_name != ""
-            call complete_add({'word': function_name, 'kind': 'f'})
+            call complete_add({'word': function_name . '(',
+                              \'abbr': function_name,
+                              \'kind': 'f'})
         endif
         let lnum = s:ErlangFindNextNonBlank(lnum)
     endwhile
 
+    if "" == a:base
+        let base = ''
+    else
+        let base = '^' . a:base
+    endif
+
     for bif_line in s:auto_imported_bifs
-        if bif_line =~# '^' . base
+        if bif_line =~# base
             let bif_name = substitute(bif_line, '(.*', '(', '')
             call complete_add({'word': bif_name,
                               \'abbr': bif_line,
                               \'kind': 'f'})
+        endif
+    endfor
+
+    let modules = system(s:erlang_complete_file .
+                        \' list-modules ' .
+                        \' --basedir ' .  expand('%:p:h'))
+    for module in split(modules, '\n')
+        if module =~# base
+            call complete_add({'word': module . ':',
+                              \'abbr': module,
+                              \'kind': 'm'})
         endif
     endfor
 

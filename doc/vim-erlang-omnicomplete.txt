@@ -33,7 +33,15 @@ The plugin completes the followings:
        | ...                                     |
        +-----------------------------------------+
 
-3. Exported functions from other modules, e.g. "lists:mem" is completed as: >
+3. Modules, e.g. "gen_" is completed as: >
+
+       +--------------+
+       | gen_event  m |
+       | gen_fsm    m |
+       | ...        m |
+       +--------------+
+
+4. Exported functions from other modules, e.g. "lists:mem" is completed as: >
 
        +-----------------------------------------+
        | lists:member(Elem, List) -> boolean() f |
