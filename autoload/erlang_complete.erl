@@ -224,7 +224,13 @@ process_rebar_configs(AbsDir) ->
 -spec process_rebar_config(Dir :: string(), ConfigTerms :: [term()]) ->
           [Option :: term()].
 process_rebar_config(Dir, Terms) ->
-    % deps -> code path
+    % The reasons for why these directories are added is documented in the same
+    % function of https://github.com/vim-erlang/vim-erlang-compiler/blob/master/compiler/erlang_check.erl.
+
+    % ebin -> code_path
+    code:add_pathsa([absname(Dir, "ebin")]),
+
+    % deps -> code_path
     RebarDepsDir = proplists:get_value(deps_dir, Terms, "deps"),
     code:add_pathsa(filelib:wildcard(absname(Dir, RebarDepsDir) ++ "/*/ebin")),
 
