@@ -129,6 +129,7 @@ run(Target) ->
 
     process_rebar_configs(AbsDir),
     code:add_patha(absname(AbsDir, "ebin")),
+    code:add_patha(absname(filename:dirname(AbsDir), "ebin")),
     run2(Target).
 
 
