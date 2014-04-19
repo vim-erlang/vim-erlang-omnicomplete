@@ -314,7 +314,7 @@ simplify_return({typevar, [{name, Name}], _}) ->
     Name;
 simplify_return({type, _, [Type]}) ->
     simplify_return(Type);
-simplify_return({abstype, _, [Type]}) ->
+simplify_return({abstype, _, [Type|_]}) ->
     {erlangName, Attrs, _} = Type,
     Name = proplists:get_value(name, Attrs),
     Name ++ "()";
