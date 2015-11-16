@@ -339,7 +339,12 @@ simplify_return({integer, [{value, Val}], _}) ->
 simplify_return({atom, [{value, Val}], _}) ->
     Val;
 simplify_return({nil, _, _}) ->
-    "[]".
+    "[]";
+simplify_return({map_field, _, [Key, Value]}) ->
+    simplify_return(Key) ++ " => " ++ simplify_return(Value);
+simplify_return({map, _, PairList}) ->
+    Pairs = string:join([ simplify_return(Pair) || Pair <- PairList ], ", "),
+    "#{" ++ Pairs ++ "}".
 
 get_attribute(Elem, AttrName) ->
     [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
