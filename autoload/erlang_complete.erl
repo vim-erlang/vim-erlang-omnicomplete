@@ -210,6 +210,9 @@ process_rebar_configs(AbsDir) ->
             error;
         {_, "/"} ->
             ok;
+        {_, [_|":/"]} ->
+            %% E.g. "C:/". This happens on Windows.
+            ok;
         {_, _} ->
             process_rebar_configs(filename:dirname(AbsDir))
     end.
