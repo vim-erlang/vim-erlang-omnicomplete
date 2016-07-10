@@ -86,15 +86,17 @@ endfunction
 function s:ErlangFindExternalFunc(module, base)
     " If the module is cached, load its functions
     if has_key(s:modules_cache, a:module)
+        let compl_words = []
         for field_cache in get(s:modules_cache, a:module)
             if match(field_cache.word, a:base) == 0
-                call complete_add(field_cache)
+                call add(compl_words, field_cache)
             endif
         endfor
 
-        return []
+        return compl_words
     endif
 
+    let compl_words = []
     let functions = system(s:erlang_complete_file .
                           \' list-functions ' . a:module .
                           \' --basedir ' .  expand('%:p:h'))
@@ -103,7 +105,7 @@ function s:ErlangFindExternalFunc(module, base)
             let function_name = matchstr(function_spec, a:base . '\w*')
             let field = {'word': function_name . '(', 'abbr': function_spec,
                   \  'kind': 'f', 'dup': 1}
-            call complete_add(field)
+            call add(compl_words, field)
 
             " Populate the cache only when iterating over all the
             " module functions (i.e. no prefix for the completion)
@@ -127,7 +129,7 @@ function s:ErlangFindExternalFunc(module, base)
         endif
     endfor
 
-    return []
+    return compl_words
 endfunction
 
 " Find local function names
@@ -141,13 +143,14 @@ function s:ErlangFindLocalFunc(base)
         let base = '^' . a:base
     endif
 
+    let compl_words = []
     while 0 != lnum && !complete_check()
         let line = getline(lnum)
         let function_name = matchstr(line, base . '[0-9A-Za-z_-]\+(\@=')
         if function_name != ""
-            call complete_add({'word': function_name . '(',
-                              \'abbr': function_name,
-                              \'kind': 'f'})
+            call add(compl_words, {'word': function_name . '(',
+                                  \'abbr': function_name,
+                                  \'kind': 'f'})
         endif
         let lnum = s:ErlangFindNextNonBlank(lnum)
     endwhile
@@ -161,9 +164,9 @@ function s:ErlangFindLocalFunc(base)
     for bif_line in s:auto_imported_bifs
         if bif_line =~# base
             let bif_name = substitute(bif_line, '(.*', '(', '')
-            call complete_add({'word': bif_name,
-                              \'abbr': bif_line,
-                              \'kind': 'f'})
+            call add(compl_words, {'word': bif_name,
+                                   \'abbr': bif_line,
+                                   \'kind': 'f'})
         endif
     endfor
 
@@ -172,13 +175,13 @@ function s:ErlangFindLocalFunc(base)
                         \' --basedir ' .  expand('%:p:h'))
     for module in split(modules, '\n')
         if module =~# base
-            call complete_add({'word': module . ':',
-                              \'abbr': module,
-                              \'kind': 'm'})
+            call add(compl_words, {'word': module . ':',
+                                  \'abbr': module,
+                                  \'kind': 'm'})
         endif
     endfor
 
-    return []
+    return compl_words
 endfunction
 
 function erlang_complete#ClearAllCache()
