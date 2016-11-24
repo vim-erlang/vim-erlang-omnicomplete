@@ -13,9 +13,9 @@ main([]) ->
 main(Args) ->
     PositionalParams = parse_args(Args),
     case PositionalParams of
-        ["list-modules"] ->
+        ["list-modules"|_] ->
             run(list_modules);
-        ["list-functions", ModuleString] ->
+        ["list-functions", ModuleString|_] ->
             run({list_functions, list_to_atom(ModuleString)});
         _ ->
             log_error("Erroneous parameters: ~p", [PositionalParams]),
