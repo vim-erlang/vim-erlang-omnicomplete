@@ -97,7 +97,7 @@ function s:ErlangFindExternalFunc(module, base)
     endif
 
     let compl_words = []
-    let functions = system(s:erlang_complete_file .
+    let functions = system('escript ' . s:erlang_complete_file .
                           \' list-functions ' . a:module .
                           \' --basedir ' .  expand('%:p:h'))
     for function_spec in split(functions, '\n')
