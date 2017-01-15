@@ -97,9 +97,9 @@ function s:ErlangFindExternalFunc(module, base)
     endif
 
     let compl_words = []
-    let functions = system('escript ' . s:erlang_complete_file .
-                          \' list-functions ' . a:module .
-                          \' --basedir ' .  expand('%:p:h'))
+    let functions = system('escript ' . fnameescape(s:erlang_complete_file) .
+                          \' list-functions ' . fnameescape(a:module) .
+                          \' --basedir ' .  fnameescape(expand('%:p:h')))
     for function_spec in split(functions, '\n')
         if match(function_spec, a:base) == 0
             let function_name = matchstr(function_spec, a:base . '\w*')
@@ -170,9 +170,9 @@ function s:ErlangFindLocalFunc(base)
         endif
     endfor
 
-    let modules = system(s:erlang_complete_file .
+    let modules = system('escript ' . fnameescape(s:erlang_complete_file) .
                         \' list-modules ' .
-                        \' --basedir ' .  expand('%:p:h'))
+                        \' --basedir ' . fnameescape(expand('%:p:h')))
     for module in split(modules, '\n')
         if module =~# base
             call add(compl_words, {'word': module . ':',
