@@ -585,10 +585,16 @@ map_functions(F, [H | T]) ->
 
 analyze_function(Fun) ->
     Name = list_to_atom(get_attribute(Fun, "name")),
+    Label = get_attribute(Fun, "label"),
+    {_, [_|ArgCount]} = lists:splitwith(fun(I) -> I =/= $- end, Label),
     Args0 = xmerl_xpath:string("typespec/type/fun/argtypes/type", Fun),
     Args = lists:map(fun(Arg) -> get_attribute(Arg, "name") end, Args0),
-    Return = analyze_return(Fun),
-    {Name, Args, Return}.
+    try
+        Return = analyze_return(Fun),
+        {Name, Args, Return}
+    catch
+        throw:no_spec -> {Name, list_to_integer(ArgCount)}
+    end.
 
 analyze_return(Fun) ->
     case xmerl_xpath:string("typespec/type/fun/type/*", Fun) of
@@ -651,8 +657,12 @@ merge_functions([], Info, Funs) ->
 merge_functions(Edoc, [], Funs) ->
     lists:reverse(Funs, Edoc);
 merge_functions(Edoc, Info, Funs) ->
-    [H1 = {K1, _, _} | T1] = Edoc,
+    [H1 | T1] = Edoc,
     [H2 = {K2, _} | T2] = Info,
+    K1 = case H1 of
+        {Name, _, _} -> Name;
+        {Name, _} -> Name
+    end,
     if
         K1 == K2 ->
             merge_functions(T1, T2, [H1 | Funs]);
