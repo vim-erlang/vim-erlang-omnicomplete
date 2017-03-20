@@ -10,6 +10,8 @@
 " Completion program path
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
+au BufWritePre *.erl :call erlang_complete#ClearOneCache(expand('%:t:r'))
+
 if !exists('g:erlang_completion_cache')
     let g:erlang_completion_cache = 1
 endif
@@ -187,6 +189,12 @@ endfunction
 function erlang_complete#ClearAllCache()
     let s:modules_cache = {}
 endfunction
+
+function erlang_complete#ClearOneCache(mod)
+    if has_key(s:modules_cache, a:mod)
+        call remove(s:modules_cache, a:mod)
+    endif
+endfunc
 
 " This list comes from http://www.erlang.org/doc/man/erlang.html (minor
 " modifications have been performed).
