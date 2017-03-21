@@ -585,15 +585,14 @@ map_functions(F, [H | T]) ->
 
 analyze_function(Fun) ->
     Name = list_to_atom(get_attribute(Fun, "name")),
-    Label = get_attribute(Fun, "label"),
-    {_, [_|ArgCount]} = lists:splitwith(fun(I) -> I =/= $- end, Label),
+    Arity = get_attribute(Fun, "arity"),
     Args0 = xmerl_xpath:string("typespec/type/fun/argtypes/type", Fun),
     Args = lists:map(fun(Arg) -> get_attribute(Arg, "name") end, Args0),
     try
         Return = analyze_return(Fun),
         {Name, Args, Return}
     catch
-        throw:no_spec -> {Name, list_to_integer(ArgCount)}
+        throw:no_spec -> {Name, list_to_integer(Arity)}
     end.
 
 analyze_return(Fun) ->
