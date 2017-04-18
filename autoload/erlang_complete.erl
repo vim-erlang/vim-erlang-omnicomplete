@@ -200,14 +200,14 @@ guess_build_system(Path) ->
     % The order is important, at least Makefile needs to come last since a lot
     % of projects include a Makefile along any other build system.
     BuildSystems = [
-                    {rebar3, [
-                              "rebar.lock"
-                             ]
-                    },
                     {rebar, [
                              "rebar.config",
                              "rebar.config.script"
                             ]
+                    },
+                    {rebar3, [
+                              "rebar.lock"
+                             ]
                     },
                     {makefile, [
                             "Makefile"
