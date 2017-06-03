@@ -104,8 +104,8 @@ function s:ErlangFindExternalFunc(module, base)
                           \' --basedir ' .  fnameescape(expand('%:p:h')))
     for function_spec in split(functions, '\n')
         if match(function_spec, a:base) == 0
-            let function_name = matchstr(function_spec, a:base . '\w*')
-            let field = {'word': function_name . '(', 'abbr': function_spec,
+            let function_name = s:GetFunctionNameFromEscriptOutput(function_spec)
+            let field = {'word': function_name , 'abbr': function_spec,
                   \  'kind': 'f', 'dup': 1, 'info': function_spec}
             call add(compl_words, field)
 
@@ -132,6 +132,24 @@ function s:ErlangFindExternalFunc(module, base)
     endfor
 
     return compl_words
+endfunction
+
+function s:GetFunctionNameFromEscriptOutput(function_spec)
+    let pre_function_name = substitute(a:function_spec, ').*', ')', '')
+    let function_name = substitute(pre_function_name, '([^)]*', '(', '')
+
+    let parameter_num = matchstr(function_name, '/\d\+')
+    let real_function_name = substitute(function_name, '/\d\+', '', '')
+    echom 'pre:'.pre_function_name.',function name:'.function_name.'parameter num:'.parameter_num.'real name:'.real_function_name
+    if parameter_num == '/0'
+        return real_function_name. '()'
+    else 
+        if parameter_num != ''
+            return real_function_name . '('
+        else
+            return real_function_name
+        endif
+    endif
 endfunction
 
 " Find local function names
@@ -165,7 +183,8 @@ function s:ErlangFindLocalFunc(base)
 
     for bif_line in s:auto_imported_bifs
         if bif_line =~# base
-            let bif_name = substitute(bif_line, '(.*', '(', '')
+            let pre_bif_name = substitute(bif_line, ').*', ')', '')
+            let bif_name = substitute(pre_bif_name, '([^)]*', '(', '')
             call add(compl_words, {'word': bif_name,
                                    \'abbr': bif_line, 'info': bif_line,
                                    \'kind': 'f'})
