@@ -106,7 +106,7 @@ function s:ErlangFindExternalFunc(module, base)
         if match(function_spec, a:base) == 0
             let function_name = matchstr(function_spec, a:base . '\w*')
             let field = {'word': function_name . '(', 'abbr': function_spec,
-                  \  'kind': 'f', 'dup': 1}
+                  \  'kind': 'f', 'dup': 1, 'info': function_spec}
             call add(compl_words, field)
 
             " Populate the cache only when iterating over all the
@@ -151,7 +151,7 @@ function s:ErlangFindLocalFunc(base)
         let function_name = matchstr(line, base . '[0-9A-Za-z_-]\+(\@=')
         if function_name != ""
             call add(compl_words, {'word': function_name . '(',
-                                  \'abbr': function_name,
+                                  \'abbr': function_name, 'info': function_name,
                                   \'kind': 'f'})
         endif
         let lnum = s:ErlangFindNextNonBlank(lnum)
@@ -167,7 +167,7 @@ function s:ErlangFindLocalFunc(base)
         if bif_line =~# base
             let bif_name = substitute(bif_line, '(.*', '(', '')
             call add(compl_words, {'word': bif_name,
-                                   \'abbr': bif_line,
+                                   \'abbr': bif_line, 'info': bif_line,
                                    \'kind': 'f'})
         endif
     endfor
