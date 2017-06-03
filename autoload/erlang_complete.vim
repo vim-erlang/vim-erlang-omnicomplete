@@ -48,6 +48,21 @@ let s:erlang_local_func_beg    = '\(\<[0-9A-Za-z_-]*\|\s*\)$'
 let s:erlang_external_func_beg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
 let s:erlang_blank_line        = '^\s*\(%.*\)\?$'
 
+if !exists('g:erlang_completion_preview_help')
+    let g:erlang_completion_preview_help = 1
+end
+
+" Return the informational line displayed at the end of the preview window.
+function s:get_preview_line()
+    if g:erlang_completion_preview_help == 1
+        return "\n\nClose preview window: CTRL-W z in normal mode." .
+             \ "\nDisable preview window: :set cot-=preview." .
+             \ "\nDon't show this message: :let g:erlang_completion_preview_help = 0."
+    else
+        return ""
+    end
+endfunction
+
 " Main function for completion.
 "
 " - If findstart = 1, then the function must return the column where the base
@@ -153,6 +168,7 @@ function s:ErlangFindExternalFunc(module, base)
             " complete-items`.
             let compl_item = {'word': function_name . '(',
                              \'abbr': function_spec,
+                             \'info': function_spec . s:get_preview_line(),
                              \'kind': 'f',
                              \'dup': 1}
             call add(compl_words, compl_item)
@@ -211,6 +227,7 @@ function s:ErlangFindLocalFunc(base)
             " We found such a local function.
             call add(compl_words, {'word': function_name . '(',
                                   \'abbr': function_name,
+                                  \'info': function_name . s:get_preview_line(),
                                   \'kind': 'f'})
         endif
         let lnum = s:ErlangFindNextNonBlank(lnum)
@@ -228,6 +245,7 @@ function s:ErlangFindLocalFunc(base)
             let bif_name = substitute(bif_line, '(.*', '(', '')
             call add(compl_words, {'word': bif_name,
                                   \'abbr': bif_line,
+                                  \'info': bif_line . s:get_preview_line(),
                                   \'kind': 'f'})
         endif
     endfor
@@ -240,6 +258,7 @@ function s:ErlangFindLocalFunc(base)
         if module =~# base
             call add(compl_words, {'word': module . ':',
                                   \'abbr': module,
+                                  \'info': module . s:get_preview_line(),
                                   \'kind': 'm'})
         endif
     endfor

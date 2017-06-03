@@ -70,6 +70,7 @@ Contributors: Pawel 'kTT' Salata (http://github.com/kTT)
               Ignas Vyšniauskas (https://github.com/yfyf)
               Adam Rutkowski <hq@mtod.org>
               Csaba Hoch <csaba.hoch@gmail.com>
+              Zengda <zengda@yunba.io>
 License:      Vim License (see |license|)
 
 ==============================================================================
