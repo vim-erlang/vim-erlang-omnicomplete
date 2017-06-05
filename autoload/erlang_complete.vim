@@ -154,25 +154,27 @@ endfunction
 
 " Find local function names
 function s:ErlangFindLocalFunc(base)
-    " Begin at line 1
-    let lnum = s:ErlangFindNextNonBlank(1)
 
-    if "" == a:base
-        let base = '^\w' " Used to match against word symbol
-    else
-        let base = '^' . a:base
-    endif
+    let buffer_list = getline(1, '$')
+    let buffer = join(buffer_list, " ")
 
     let compl_words = []
-    while 0 != lnum && !complete_check()
-        let line = getline(lnum)
-        let function_name = matchstr(line, base . '[0-9A-Za-z_-]\+(\@=')
-        if function_name != ""
-            call add(compl_words, {'word': function_name . '(',
-                                  \'abbr': function_name, 'info': function_name,
+    let i = 1
+    while !complete_check()
+        let function_name_match = matchstr(buffer, '\(\.\s*\|^\)\@<='.a:base.'[0-9A-Za-z_-]\+([_a-zA-Z0-9, \t]*)\(\s*->\)\@=', 0, i)
+        if function_name_match != ""
+            echom function_name_match
+            let pre_function_name = substitute(function_name_match, ').*', ')', '')
+            let function_name = substitute(pre_function_name, '([^)]*', '(', '')
+            echom pre_function_name
+            call add(compl_words, {'word': function_name ,
+                                  \'abbr': function_name, 'info': function_name_match,
                                   \'kind': 'f'})
+        else
+            break
         endif
-        let lnum = s:ErlangFindNextNonBlank(lnum)
+
+        let i = i + 1
     endwhile
 
     if "" == a:base
