@@ -136,7 +136,8 @@ endfunction
 
 function s:GetFunctionNameFromEscriptOutput(function_spec)
     let pre_function_name = substitute(a:function_spec, ').*', ')', '')
-    let function_name = substitute(pre_function_name, '([^)]*', '(', '')
+    let pre_function_name_2 = substitute(pre_function_name, '\s', '', 'g')
+    let function_name = substitute(pre_function_name_2, '([^)]\+)', '(', '')
 
     let parameter_num = matchstr(function_name, '/\d\+')
     let real_function_name = substitute(function_name, '/\d\+', '', '')
@@ -164,8 +165,8 @@ function s:ErlangFindLocalFunc(base)
         let function_name_match = matchstr(buffer, '\(\.\s*\|^\)\@<='.a:base.'[0-9A-Za-z_-]\+([_a-zA-Z0-9, \t]*)\(\s*->\)\@=', 0, i)
         if function_name_match != ""
             echom function_name_match
-            let pre_function_name = substitute(function_name_match, ').*', ')', '')
-            let function_name = substitute(pre_function_name, '([^)]*', '(', '')
+            let pre_function_name = substitute(function_name_match, '\s', '', 'g')
+            let function_name = substitute(pre_function_name, '([^)]\+)', '(', '')
             echom pre_function_name
             call add(compl_words, {'word': function_name ,
                                   \'abbr': function_name, 'info': function_name_match,
@@ -186,7 +187,8 @@ function s:ErlangFindLocalFunc(base)
     for bif_line in s:auto_imported_bifs
         if bif_line =~# base
             let pre_bif_name = substitute(bif_line, ').*', ')', '')
-            let bif_name = substitute(pre_bif_name, '([^)]*', '(', '')
+            let pre_bif_name2 = substitute(pre_bif_name, '\s', '', 'g')
+            let bif_name = substitute(pre_bif_name2, '([^)]\+)', '(', '')
             call add(compl_words, {'word': bif_name,
                                    \'abbr': bif_line, 'info': bif_line,
                                    \'kind': 'f'})
