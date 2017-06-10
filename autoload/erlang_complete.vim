@@ -16,6 +16,10 @@ if !exists('g:erlang_completion_cache')
     let g:erlang_completion_cache = 1
 endif
 
+if !exists('g:erlang_complete_left_bracket')
+    let g:erlang_complete_left_bracket = 1
+endif
+
 " Modules cache used to speed up the completion
 let s:modules_cache = {}
 
@@ -137,16 +141,28 @@ endfunction
 function s:GetFunctionNameFromEscriptOutput(function_spec)
     let pre_function_name = substitute(a:function_spec, ').*', ')', '')
     let pre_function_name_2 = substitute(pre_function_name, '\s', '', 'g')
-    let function_name = substitute(pre_function_name_2, '([^)]\+)', '(', '')
+    if g:erlang_complete_left_bracket == 1
+        let function_name = substitute(pre_function_name_2, '([^)]\+)', '(', '')
+    else
+        let function_name = substitute(pre_function_name_2, '([^)]\+)', '', '')
+    endif
 
     let parameter_num = matchstr(function_name, '/\d\+')
     let real_function_name = substitute(function_name, '/\d\+', '', '')
     echom 'pre:'.pre_function_name.',function name:'.function_name.'parameter num:'.parameter_num.'real name:'.real_function_name
     if parameter_num == '/0'
-        return real_function_name. '()'
+        if g:erlang_complete_left_bracket == 1
+            return real_function_name. '()'
+        else
+            return real_function_name
+        endif
     else 
         if parameter_num != ''
-            return real_function_name . '('
+            if g:erlang_complete_left_bracket == 1
+                return real_function_name . '('
+            else
+                return real_function_name
+            endif
         else
             return real_function_name
         endif
@@ -166,7 +182,11 @@ function s:ErlangFindLocalFunc(base)
         if function_name_match != ""
             echom function_name_match
             let pre_function_name = substitute(function_name_match, '\s', '', 'g')
-            let function_name = substitute(pre_function_name, '([^)]\+)', '(', '')
+            if g:erlang_complete_left_bracket == 1
+                let function_name = substitute(pre_function_name, '([^)]\+)', '(', '')
+            else
+                let function_name = substitute(pre_function_name, '([^)]\+)', '', '')
+            endif
             echom pre_function_name
             call add(compl_words, {'word': function_name ,
                                   \'abbr': function_name, 'info': function_name_match,
@@ -188,7 +208,12 @@ function s:ErlangFindLocalFunc(base)
         if bif_line =~# base
             let pre_bif_name = substitute(bif_line, ').*', ')', '')
             let pre_bif_name2 = substitute(pre_bif_name, '\s', '', 'g')
-            let bif_name = substitute(pre_bif_name2, '([^)]\+)', '(', '')
+            if g:erlang_complete_left_bracket == 1
+                let bif_name = substitute(pre_bif_name2, '([^)]\+)', '(', '')
+            else
+                let bif_name = substitute(pre_bif_name2, '([^)]\+)', '', '')
+            endif
+
             call add(compl_words, {'word': bif_name,
                                    \'abbr': bif_line, 'info': bif_line,
                                    \'kind': 'f'})
