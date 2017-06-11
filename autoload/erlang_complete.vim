@@ -20,6 +20,11 @@ if !exists('g:erlang_complete_left_bracket')
     let g:erlang_complete_left_bracket = 1
 endif
 
+if !exists('g:erlang_complete_extend_arbit')
+    let g:erlang_complete_extend_arbit = 0
+endif
+
+
 " Modules cache used to speed up the completion
 let s:modules_cache = {}
 
@@ -108,9 +113,10 @@ function s:ErlangFindExternalFunc(module, base)
                           \' --basedir ' .  fnameescape(expand('%:p:h')))
     for function_spec in split(functions, '\n')
         if match(function_spec, a:base) == 0
+            let processed_spec = s:ExtendArbitToParameters(function_spec)
             let function_name = s:GetFunctionNameFromEscriptOutput(function_spec)
             let field = {'word': function_name , 'abbr': function_spec,
-                  \  'kind': 'f', 'dup': 1, 'info': function_spec}
+                  \  'kind': 'f', 'dup': 1, 'info': processed_spec}
             call add(compl_words, field)
 
             " Populate the cache only when iterating over all the
@@ -137,6 +143,28 @@ function s:ErlangFindExternalFunc(module, base)
 
     return compl_words
 endfunction
+
+function s:ExtendArbitToParameters(function_spec)
+    if g:erlang_complete_extend_arbit == 1
+        let function_name = substitute(a:function_spec, '/.*', '', '')
+        let parameter_num = matchstr(a:function_spec, '\(/\)\@<=\d\+')
+        if parameter_num != ''
+            let int_parameter_num = str2nr(parameter_num)
+            let parameter_list = []
+            let i = 0
+            while int_parameter_num !=  i
+                call add(parameter_list, 'T' . i)
+                let i = i + 1
+            endwhile
+            return function_name . '('.join(parameter_list, ', ').') -> term()' 
+        else
+           return a:function_spec
+        endif
+    else
+        return a:function_spec
+    endif 
+endfunc
+
 
 function s:GetFunctionNameFromEscriptOutput(function_spec)
     let pre_function_name = substitute(a:function_spec, ').*', ')', '')
