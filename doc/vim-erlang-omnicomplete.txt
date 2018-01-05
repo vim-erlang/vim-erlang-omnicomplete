@@ -4,7 +4,8 @@ CONTENTS                                             *vim-erlang-omnicomplete*
 
     1. Introduction.....................|vim-erlang-omnicomplete-intro|
     2. Credits..........................|vim-erlang-omnicomplete-credits|
-    3. Contributing.....................|vim-erlang-omnicomplete-contributing|
+    3. Opitons..........................|vim-erlang-omnicomplete-options|
+    4. Contributing.....................|vim-erlang-omnicomplete-contributing|
 
 ==============================================================================
 INTRODUCTION                                   *vim-erlang-omnicomplete-intro*
@@ -71,6 +72,38 @@ Contributors: Pawel 'kTT' Salata (http://github.com/kTT)
               Adam Rutkowski <hq@mtod.org>
               Csaba Hoch <csaba.hoch@gmail.com>
 License:      Vim License (see |license|)
+
+==============================================================================
+OPTIONS                                      *vim-erlang-omnicomplete-options*
+
+1. g:erlang_completion_cache
+Allow to cache completion list.Default: 1
+
+2, g:erlang_complete_left_bracket
+Allow completor to add left bracket. Default:1.
+
+When g:erlang_complete_left_bracket = 1, this plugin behave like this:
+
+a, random:seed() -> result in random:seed()
+b, random:seed(SRand) -> result in random:seed(
+c, random:module/0 -> result in random:module()
+d, random:module/1 -> result in random:module(
+
+When g:erlang_complete_left_bracket = 0, this plugin behave like this:
+
+a, random:seed() -> result in random:seed
+b, random:seed(SRand) -> result in random:seed
+c, random:module/0 -> result in random:module
+d, random:module/1 -> result in random:module
+
+This is usefule if you don't want the plugin to complete left bracket, or you
+use some plugin like auto-pairs
+
+3, g:erlang_complete_extend_arbit
+Allow completor to extend "random:module/1" to "randome:module(T1)" in omni's
+Preview window. Default is 0.
+
+==============================================================================
 
 ==============================================================================
 CONTRIBUTING                            *vim-erlang-omnicomplete-contributing*
