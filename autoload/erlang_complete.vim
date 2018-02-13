@@ -10,6 +10,24 @@
 " Completion program path
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
+" Returns whether "substring" is a prefix of "string".
+function s:starts_with(string, substring)
+    let string_start = strpart(a:string, 0, len(a:substring))
+    return string_start ==# a:substring
+endfunction
+
+" If we are running in Cygwin, the path needs to be converted.
+" See: https://github.com/vim-erlang/vim-erlang-omnicomplete/issues/21
+if has('win32') == 0 && s:starts_with(system('uname'), 'CYGWIN')
+    " Cygwin system. Now check if erlang is Windows or cygwin (currently only
+    " Windows is possible)
+    let cygwin_base_path = system('cygpath -w /')
+    if !s:starts_with(s:erlang_complete_file, cygwin_base_path)
+        " Windows, as expected
+        let s:erlang_complete_file = system('cygpath -w ' . s:erlang_complete_file)
+    endif
+endif
+
 au BufWritePre *.erl :call erlang_complete#ClearOneCache(expand('%:t:r'))
 
 if !exists('g:erlang_completion_cache')
