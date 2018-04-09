@@ -529,7 +529,7 @@ load_makefiles([Makefile|_Rest]) ->
 
 
 module_edoc(Mod) ->
-    File = case filename:find_src(Mod) of
+    File = case filelib:find_source(Mod) of
         {error, _} ->
             BeamFile = atom_to_list(Mod) ++ ".beam",
             case code:where_is_file(BeamFile) of
