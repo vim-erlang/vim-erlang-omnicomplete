@@ -1,5 +1,7 @@
 #!/usr/bin/env escript
 
+-mode(compile).
+
 -include_lib("xmerl/include/xmerl.hrl").
 
 %%------------------------------------------------------------------------------
