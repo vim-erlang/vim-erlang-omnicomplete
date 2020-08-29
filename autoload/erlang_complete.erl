@@ -20,7 +20,7 @@ main(Args) ->
         ["list-functions", ModuleString] ->
             run({list_functions, list_to_atom(ModuleString)});
         _ ->
-            log_error("Erroneous parameters: ~p", [PositionalParams]),
+            log_error("Erroneous parameters: ~p~n", [PositionalParams]),
             halt(2)
     end.
 
@@ -219,7 +219,7 @@ guess_build_system(Path) ->
     guess_build_system(Path, BuildSystems).
 
 guess_build_system(_Path, []) ->
-    log("Unknown build system"),
+    log("Unknown build system.~n"),
     {unknown_build_system, []};
 guess_build_system(Path, [{BuildSystem, Files}|Rest]) ->
     log("Try build system: ~p~n", [BuildSystem]),
