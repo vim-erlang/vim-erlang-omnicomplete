@@ -390,7 +390,10 @@ process_rebar3_config(ConfigPath, Terms) ->
             % give an explicit error instead of proceeding anyway.
             log_error("rebar3 executable not found.~n"),
             error;
-        {ok, Rebar3} ->
+        {ok, Rebar3Rel} ->
+            log("rebar3 executable found: ~s~n", [Rebar3Rel]),
+            Rebar3 = filename:absname(Rebar3Rel),
+            log("Absolute path to rebar3 executable: ~s~n", [Rebar3]),
             % load the profile used by rebar3 to print the dependency path list
             Profile = rebar3_get_profile(Terms),
             % "rebar3 path" prints all paths that belong to the project; we add
@@ -400,13 +403,26 @@ process_rebar3_config(ConfigPath, Terms) ->
             % https://github.com/erlang/rebar3/issues/1143.
             {ok, Cwd} = file:get_cwd(),
             file:set_cwd(ConfigPath),
-            Paths = os:cmd(
-                      io_lib:format("QUIET=1 ~p as ~p path", [Rebar3, Profile])
-                     ),
+            MainCmd = io_lib:format("QUIET=1 ~p as ~p path", [Rebar3, Profile]),
+            log("Call: ~s~n", [MainCmd]),
+            Paths = os:cmd(MainCmd),
+            log("Result: ~s~n", [Paths]),
             file:set_cwd(Cwd),
             CleanedPaths = [absname(ConfigPath, SubDir)
                             || SubDir <- string:tokens(Paths, " ")],
             code:add_pathsa(CleanedPaths),
+
+            % Add _checkouts dependencies to code_path.
+            %
+            % These dependencies are compiled into the following directories:
+            %
+            % - `_checkouts/<app>/ebin' until rebar 3.13
+            % - `_build/<profile>/checkouts/<app>/ebin/' from rebar 3.14
+            %
+            % Documentation for _checkouts dependencies:
+            % https://www.rebar3.org/docs/dependencies#section-checkout-dependencies
+            code:add_pathsa(filelib:wildcard(absname(ConfigPath, "_checkouts") ++ "/*/ebin")),
+            code:add_pathsa(filelib:wildcard(absname(ConfigPath, "_build") ++ "/default/checkouts/*/ebin")),
 
             ErlOpts = proplists:get_value(erl_opts, Terms, []),
             remove_warnings_as_errors(ErlOpts)
