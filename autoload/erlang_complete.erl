@@ -424,6 +424,22 @@ process_rebar3_config(ConfigPath, Terms) ->
             code:add_pathsa(filelib:wildcard(absname(ConfigPath, "_checkouts") ++ "/*/ebin")),
             code:add_pathsa(filelib:wildcard(absname(ConfigPath, "_build") ++ "/default/checkouts/*/ebin")),
 
+            lists:foreach(
+              fun({ProfileName, Deps}) ->
+                      Apps = string:join([atom_to_list(D) || D <- Deps], ","),
+                      file:set_cwd(ConfigPath),
+                      Cmd2 = io_lib:format("QUIET=1 ~p as ~p path --app=~s",
+                                          [Rebar3, ProfileName, Apps]),
+                      log("Call: ~s~n", [Cmd2]),
+                      ProfilePaths = os:cmd(Cmd2),
+                      log("Result: ~s~n", [Paths]),
+                      file:set_cwd(Cwd),
+                      Cleaned = [absname(ConfigPath, SubDir)
+                                 || SubDir <- string:tokens(ProfilePaths, " ")],
+                      code:add_pathsa(Cleaned);
+                 (_) -> ok
+              end, rebar3_get_extra_profiles(Terms)),
+
             ErlOpts = proplists:get_value(erl_opts, Terms, []),
             remove_warnings_as_errors(ErlOpts)
     end.
@@ -474,6 +490,32 @@ rebar3_get_profile(Terms) ->
     undefined -> "default";
     Options -> proplists:get_value(profile, Options, "default")
   end.
+
+%%------------------------------------------------------------------------------
+%% @doc Read all extra profile names declared within the rebar.config
+%%
+%%------------------------------------------------------------------------------
+-spec rebar3_get_extra_profiles(Terms) -> Result when
+      Terms :: [{atom(), term()}],
+      Result :: [{ProfileName :: string(),
+                  [Dependency :: term()]}].
+rebar3_get_extra_profiles(Terms) ->
+    case proplists:get_value(profiles, Terms, []) of
+        [] ->
+            [];
+        Profiles ->
+            lists:flatmap(
+              fun({ProfileName, Profile}) ->
+                      case proplists:get_value(deps, Profile, []) of
+                          [] ->
+                              [];
+                          Deps ->
+                              [{ProfileName, [Dep || {Dep, _} <- Deps]}]
+                      end;
+                 (_) ->
+                      []
+              end, Profiles)
+    end.
 
 %%------------------------------------------------------------------------------
 %% @doc Remove the "warnings_as_errors" option from the given Erlang options.
