@@ -149,10 +149,7 @@ run(Target) ->
         end,
 
     {BuildSystem, BuildFiles} = guess_build_system(AbsDir),
-    %% TODO Where does {result, _} and error come from?
     {opts, _} = load_build_files(BuildSystem, AbsDir, BuildFiles),
-    % code:add_patha(absname(AbsDir, "ebin")),
-    % code:add_patha(absname(filename:dirname(AbsDir), "ebin")),
     run2(Target).
 
 %%------------------------------------------------------------------------------
