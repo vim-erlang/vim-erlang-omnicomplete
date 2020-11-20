@@ -1,6 +1,6 @@
 #!/usr/bin/env escript
 
-%%% This script lists all modules or all functions of a module.
+%%% This script prints all modules or prints all functions of a module.
 %%%
 %%% See more information in the {@link print_help/0} function.
 
@@ -16,14 +16,23 @@
 -include_lib("xmerl/include/xmerl.hrl").
 
 %%%=============================================================================
+%%% Types
+%%%=============================================================================
+
+-type build_system() :: rebar | rebar3 | makefile.
+
+%%%=============================================================================
 %%% Main function
 %%%=============================================================================
 
 %%------------------------------------------------------------------------------
-%% @doc Print completions.
+%% @doc This function is the entry point of the script.
+%%
+%% Print all modules or print all functions of a module.
 %% @end
 %%------------------------------------------------------------------------------
--spec main([string()]) -> no_return().
+-spec main(Args) -> no_return() when
+      Args :: [string()].
 main([]) ->
     io:format("Usage: see --help.~n"),
     halt(2);
@@ -46,15 +55,27 @@ main(Args) ->
 %%------------------------------------------------------------------------------
 %% @doc Parse the argument list.
 %%
-%% Put the options into the process dictionary and return the list of files.
+%% Put the options into the process dictionary and return the positional
+%% parameters.
 %% @end
 %%------------------------------------------------------------------------------
--spec parse_args(Args :: string()) -> [PositionalParam :: string()].
+-spec parse_args(Args) -> PositionalParams when
+      Args :: [string()],
+      PositionalParams :: [string()].
 parse_args(Args) ->
     lists:reverse(parse_args(Args, [])).
 
--spec parse_args(Args :: string(), Acc :: [PositionalParam :: string()]) ->
-          [PositionalParam :: string()].
+%%------------------------------------------------------------------------------
+%% @doc Parse the argument list.
+%%
+%% Put the options into the process dictionary and return the positional
+%% parameters in reverse order.
+%% @end
+%%------------------------------------------------------------------------------
+-spec parse_args(Args, Acc) -> PositionalParams when
+      Args :: [string()],
+      Acc :: [PositionalParam :: string()],
+      PositionalParams :: [string()].
 parse_args([], Acc) ->
     Acc;
 parse_args([Help|_], _Acc) when Help == "-h";
@@ -81,7 +102,7 @@ parse_args([PosPar|OtherArgs], Acc) ->
     parse_args(OtherArgs, [PosPar|Acc]).
 
 %%------------------------------------------------------------------------------
-%% @doc Print the script's help text and exit.
+%% @doc Print the script's help text.
 %% @end
 %%------------------------------------------------------------------------------
 -spec print_help() -> ok.
@@ -113,8 +134,9 @@ Options:
 %% This function sets the code paths too.
 %% @end
 %%------------------------------------------------------------------------------
--spec run(list_modules) -> ok;
-         ({list_functions, Module :: atom()}) -> ok.
+-spec run(Query) -> ok when
+      Query :: list_modules |
+               {list_functions, module()}.
 run(Target) ->
 
     AbsDir =
@@ -126,9 +148,9 @@ run(Target) ->
                 filename:absname(BaseDir)
         end,
 
-    {BuildSystem, Files} = guess_build_system(AbsDir),
+    {BuildSystem, BuildFiles} = guess_build_system(AbsDir),
     %% TODO Where does {result, _} and error come from?
-    {opts, _} = load_build_files(BuildSystem, AbsDir, Files),
+    {opts, _} = load_build_files(BuildSystem, AbsDir, BuildFiles),
     % code:add_patha(absname(AbsDir, "ebin")),
     % code:add_patha(absname(filename:dirname(AbsDir), "ebin")),
     run2(Target).
@@ -138,7 +160,10 @@ run(Target) ->
 %% used.
 %% @end
 %%------------------------------------------------------------------------------
--spec guess_build_system(string()) -> {atom(), string()}.
+-spec guess_build_system(Path) -> Result when
+      Path :: string(),
+      Result :: {build_system(),
+                 BuildFiles :: [string()]}.
 guess_build_system(Path) ->
     % The order is important, at least Makefile needs to come last since a lot
     % of projects include a Makefile along any other build system.
@@ -159,24 +184,38 @@ guess_build_system(Path) ->
                    ],
     guess_build_system(Path, BuildSystems).
 
+%%------------------------------------------------------------------------------
+%% @doc Check which build system's files are contained by the project.
+%% @end
+%%------------------------------------------------------------------------------
+-spec guess_build_system(Path, BuildSystems) -> Result when
+      BuildSystems :: [{build_system(),
+                        BaseNames :: [string()]}],
+      Path :: string(),
+      Result :: {build_system(),
+                 BuildFiles :: [string()]}.
 guess_build_system(_Path, []) ->
     log("Unknown build system.~n"),
     {unknown_build_system, []};
-guess_build_system(Path, [{BuildSystem, Files}|Rest]) ->
+guess_build_system(Path, [{BuildSystem, BaseNames}|Rest]) ->
     log("Try build system: ~p~n", [BuildSystem]),
-    case find_files(Path, Files) of
-        [] -> guess_build_system(Path, Rest);
-        FoundFiles when is_list(FoundFiles) -> {BuildSystem, FoundFiles}
+    case find_files(Path, BaseNames) of
+        [] ->
+            guess_build_system(Path, Rest);
+        BuildFiles ->
+            {BuildSystem, BuildFiles}
     end.
 
 %%------------------------------------------------------------------------------
 %% @doc Load the settings from a given set of build system files.
 %% @end
 %%------------------------------------------------------------------------------
--spec load_build_files(atom(), string(), [string()]) ->
-    {opts, [{atom(), term()}]} |
-    {result, term()} |
-    error.
+-spec load_build_files(BuildSystem, ProjectRoot, ConfigFiles) -> Result when
+      BuildSystem :: build_system(),
+      ProjectRoot :: string(),
+      ConfigFiles :: [string()],
+      Result :: {opts, [{atom(), term()}]} |
+                error.
 load_build_files(rebar, _ProjectRoot, ConfigFiles) ->
     load_rebar_files(ConfigFiles, no_config);
 load_build_files(rebar3, ProjectRoot, _ConfigFiles) ->
@@ -206,8 +245,11 @@ load_build_files(unknown_build_system, ProjectRoot, _) ->
 %% files will be processed for code path only.
 %% @end
 %%------------------------------------------------------------------------------
--spec load_rebar_files([string()], no_config | [{atom(), term()}]) ->
-    {opts, [{atom(), term()}]} | error.
+-spec load_rebar_files(ConfigFiles, Config) -> Result when
+      ConfigFiles :: [string()],
+      Config :: no_config | [{atom(), term()}],
+      Result :: {opts, [{atom(), term()}]} |
+                error.
 load_rebar_files([], no_config) ->
     error;
 load_rebar_files([], Config) ->
@@ -239,9 +281,11 @@ load_rebar_files([ConfigFile|Rest], Config) ->
 %% and returns and compilation options to be used when compiling the file.
 %% @end
 %%------------------------------------------------------------------------------
--spec process_rebar_config(string(), [{atom(), term()}],
-                           [{atom(), term()}] | no_config) ->
-    [{atom(), term()}].
+-spec process_rebar_config(Path, Terms, Config) -> Result when
+      Path :: string(),
+      Terms :: [{atom(), term()}],
+      Config :: no_config | [{atom(), term()}],
+      Result :: [{atom(), term()}].
 process_rebar_config(Path, Terms, Config) ->
 
     % App layout:
@@ -303,8 +347,10 @@ process_rebar_config(Path, Terms, Config) ->
 %% rebar file (the one closest to the file to compile).
 %% @end
 %%------------------------------------------------------------------------------
--spec load_rebar3_files(string()) ->
-    {opts, [{atom(), term()}]} | error.
+-spec load_rebar3_files(ConfigFile) -> Result when
+      ConfigFile :: string(),
+      Result :: {opts, [{atom(), term()}]} |
+                error.
 load_rebar3_files(ConfigFile) ->
     ConfigPath = filename:dirname(ConfigFile),
     ConfigResult = case filename:extension(ConfigFile) of
@@ -333,8 +379,10 @@ load_rebar3_files(ConfigFile) ->
 %% returns and compilation options to be used when compiling the file.
 %% @end
 %%------------------------------------------------------------------------------
--spec process_rebar3_config(string(), [{atom(), term()}]) ->
-    [{atom(), term()}] | error.
+-spec process_rebar3_config(ConfigPath, Terms) -> Result when
+      ConfigPath :: string(),
+      Terms :: [{atom(), term()}],
+      Result :: [{atom(), term()}] | error.
 process_rebar3_config(ConfigPath, Terms) ->
     case find_rebar3(ConfigPath) of
         not_found ->
@@ -371,8 +419,10 @@ process_rebar3_config(ConfigPath, Terms) ->
 %% it in the PATH.
 %% @end
 %%------------------------------------------------------------------------------
--spec find_rebar3([string()]) -> {ok, string()} |
-                                 not_found.
+-spec find_rebar3(ConfigPath) -> Result when
+      ConfigPath :: [string()],
+      Result :: {ok, string()} |
+                not_found.
 find_rebar3(ConfigPath) ->
     case find_files(ConfigPath, ["rebar3"]) of
         [Rebar3|_] ->
@@ -393,10 +443,16 @@ find_rebar3(ConfigPath) ->
 %% `vim_erlang_compiler`.
 %%
 %% E.g. to use the "test" profile:
+%%
+%% ```
 %% {vim_erlang_compiler, [
 %%   {profile, "test"}
 %% ]}.
+%% '''
 %%------------------------------------------------------------------------------
+-spec rebar3_get_profile(Terms) -> Result when
+      Terms :: [{atom(), term()}],
+      Result :: string().
 rebar3_get_profile(Terms) ->
   case proplists:get_value(vim_erlang_compiler, Terms) of
     undefined -> "default";
@@ -419,7 +475,8 @@ rebar3_get_profile(Terms) ->
 %% them accordingly.
 %% @end
 %%------------------------------------------------------------------------------
--spec remove_warnings_as_errors([{atom(), string()}]) -> [{atom(), string()}].
+-spec remove_warnings_as_errors(ErlOpts) -> ErlOpts when
+      ErlOpts :: [{atom(), string()}].
 remove_warnings_as_errors(ErlOpts) ->
     proplists:delete(warnings_as_errors, ErlOpts).
 
@@ -427,7 +484,10 @@ remove_warnings_as_errors(ErlOpts) ->
 %% @doc Set code paths and options for a simple Makefile
 %% @end
 %%------------------------------------------------------------------------------
--spec load_makefiles([string()]) -> {ok, [{atom(), term()}]} | error.
+-spec load_makefiles(BuildFiles) -> Result when
+      BuildFiles :: [string()],
+      Result :: {opts, [{atom(), term()}]} |
+                error.
 load_makefiles([Makefile|_Rest]) ->
     Path = filename:dirname(Makefile),
     code:add_pathsa([absname(Path, "ebin")]),
