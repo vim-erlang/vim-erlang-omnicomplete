@@ -1,8 +1,23 @@
 #!/usr/bin/env escript
 
+%%% This script lists all modules or all functions of a module.
+%%%
+%%% See more information in the {@link print_help/0} function.
+
+% 'compile' mode gives better error messages if the script throws an error.
 -mode(compile).
 
+% The filename:find_src/1 function is deprecated. Its replacement function is
+% filelib:find_source, which has a different interface and was introduced only
+% in Erlang 20. As long as filename:find_src/1 is present in the newest Erlang
+% version, we can keep using filename:find_src/1.
+-compile({nowarn_deprecated_function, [{filename, find_src, 1}]}).
+
 -include_lib("xmerl/include/xmerl.hrl").
+
+%%%=============================================================================
+%%% Main function
+%%%=============================================================================
 
 %%------------------------------------------------------------------------------
 %% @doc Print completions.
@@ -23,6 +38,10 @@ main(Args) ->
             log_error("Erroneous parameters: ~p~n", [PositionalParams]),
             halt(2)
     end.
+
+%%%=============================================================================
+%%% Parse command line arguments
+%%%=============================================================================
 
 %%------------------------------------------------------------------------------
 %% @doc Parse the argument list.
@@ -84,45 +103,9 @@ Options:
 ",
     io:format(Text).
 
-%%------------------------------------------------------------------------------
-%% @doc Log the given entry if we are in verbose mode.
-%% @end
-%%------------------------------------------------------------------------------
--spec log(io:format()) -> ok.
-log(Format) ->
-    log(Format, []).
-
--spec log(io:format(), [term()]) -> ok.
-log(Format, Data) ->
-    case get(verbose) of
-        true ->
-            io:format(Format, Data);
-        _ ->
-            ok
-    end.
-
-%%------------------------------------------------------------------------------
-%% @doc Print the given error reason in a Vim-friendly and human-friendly way.
-%% @end
-%%------------------------------------------------------------------------------
--spec file_error(string(), term()) -> error.
-file_error(File, Reason) ->
-    Reason2 = file:format_error(Reason),
-    io:format(user, "~s: ~s~n", [File, Reason2]),
-    error.
-
-%%------------------------------------------------------------------------------
-%% @doc Log the given error.
-%% @end
-%%------------------------------------------------------------------------------
--spec log_error(io:format()) -> ok.
-log_error(Format) ->
-    io:format(standard_error, Format, []).
-
--spec log_error(io:format(), [term()]) -> ok.
-log_error(Format, Data) ->
-    io:format(standard_error, Format, Data).
-
+%%%=============================================================================
+%%% Execution
+%%%=============================================================================
 
 %%------------------------------------------------------------------------------
 %% @doc Complete the given query.
@@ -149,48 +132,6 @@ run(Target) ->
     % code:add_patha(absname(AbsDir, "ebin")),
     % code:add_patha(absname(filename:dirname(AbsDir), "ebin")),
     run2(Target).
-
-
-%%------------------------------------------------------------------------------
-%% @doc Complete the given query.
-%%
-%% This function assumes that the code paths are all set.
-%% @end
-%%------------------------------------------------------------------------------
--spec run2(list_modules) -> ok;
-          ({list_functions, Module :: atom()}) -> ok.
-run2(list_modules) ->
-    Modules = [filename:basename(File, ".beam")
-               || Dir <- code:get_path(),
-                  File <- filelib:wildcard(filename:join(Dir, "*.beam"))],
-    [io:format("~s\n", [Mod]) || Mod <- lists:sort(Modules)],
-    ok;
-
-run2({list_functions, Mod}) ->
-
-    Edoc =
-        try
-            module_edoc(Mod)
-        catch
-            throw:not_found ->
-                [];
-            error:{badmatch, _} ->
-                [];
-            exit:error ->
-                []
-        end,
-
-    Info =
-        try
-            module_info2(Mod)
-        catch
-            error:undef ->
-                []
-        end,
-
-    FunSpecs = merge_functions(Edoc, Info),
-    [print_function(Fun) || Fun <- FunSpecs ],
-    ok.
 
 %%------------------------------------------------------------------------------
 %% @doc Check for some known files and try to guess what build system is being
@@ -226,41 +167,6 @@ guess_build_system(Path, [{BuildSystem, Files}|Rest]) ->
     case find_files(Path, Files) of
         [] -> guess_build_system(Path, Rest);
         FoundFiles when is_list(FoundFiles) -> {BuildSystem, FoundFiles}
-    end.
-
-%%------------------------------------------------------------------------------
-%% @doc Recursively search upward through the path tree and returns the absolute
-%% path to all files matching the given filenames.
-%% @end
-%%------------------------------------------------------------------------------
--spec find_files(string(), [string()]) -> [string()].
-find_files("/", Files) ->
-    find_file("/", Files);
-find_files([_|":/"] = Path, Files) ->
-    %% E.g. "C:/". This happens on Windows.
-    find_file(Path, Files);
-find_files(Path, Files) ->
-    %find_files(Path, Files, Files).
-    ParentPath = filename:dirname(Path),
-    find_file(Path, Files) ++
-    find_files(ParentPath, Files).
-
-%%------------------------------------------------------------------------------
-%% @doc Find the first file matching one of the filenames in the given path.
-%% @end
-%%------------------------------------------------------------------------------
--spec find_file(string(), [string()]) -> [string()].
-find_file(_Path, []) ->
-    [];
-find_file(Path, [File|Rest]) ->
-    AbsFile = absname(Path, File),
-    case filelib:is_regular(AbsFile) of
-        true ->
-            log("Found build file: [~p] ~p~n", [Path, AbsFile]),
-            % Return file and continue searching in parent directory.
-            [AbsFile];
-        false ->
-            find_file(Path, Rest)
     end.
 
 %%------------------------------------------------------------------------------
@@ -319,36 +225,6 @@ load_rebar_files([ConfigFile|Rest], Config) ->
             case load_rebar_files(Rest, NewConfig) of
                 {opts, SubConfig} -> {opts, SubConfig};
                 error -> {opts, NewConfig}
-            end;
-        {error, Reason} ->
-            log_error("rebar.config consult failed:~n"),
-            file_error(ConfigFile, Reason),
-            error
-    end.
-
-%%------------------------------------------------------------------------------
-%% @doc Load the content of each rebar3 file.
-%%
-%% Note worthy: The config returned by this function only represent the first
-%% rebar file (the one closest to the file to compile).
-%% @end
-%%------------------------------------------------------------------------------
--spec load_rebar3_files(string()) ->
-    {opts, [{atom(), term()}]} | error.
-load_rebar3_files(ConfigFile) ->
-    ConfigPath = filename:dirname(ConfigFile),
-    ConfigResult = case filename:extension(ConfigFile) of
-                       ".script" -> file:script(ConfigFile);
-                       ".config" -> file:consult(ConfigFile)
-                   end,
-    case ConfigResult of
-        {ok, ConfigTerms} ->
-            log("rebar.config read: ~s~n", [ConfigFile]),
-            case process_rebar3_config(ConfigPath, ConfigTerms) of
-                error ->
-                    error;
-                Config ->
-                    {opts, Config}
             end;
         {error, Reason} ->
             log_error("rebar.config consult failed:~n"),
@@ -421,6 +297,36 @@ process_rebar_config(Path, Terms, Config) ->
     end.
 
 %%------------------------------------------------------------------------------
+%% @doc Load the content of each rebar3 file.
+%%
+%% Note worthy: The config returned by this function only represent the first
+%% rebar file (the one closest to the file to compile).
+%% @end
+%%------------------------------------------------------------------------------
+-spec load_rebar3_files(string()) ->
+    {opts, [{atom(), term()}]} | error.
+load_rebar3_files(ConfigFile) ->
+    ConfigPath = filename:dirname(ConfigFile),
+    ConfigResult = case filename:extension(ConfigFile) of
+                       ".script" -> file:script(ConfigFile);
+                       ".config" -> file:consult(ConfigFile)
+                   end,
+    case ConfigResult of
+        {ok, ConfigTerms} ->
+            log("rebar.config read: ~s~n", [ConfigFile]),
+            case process_rebar3_config(ConfigPath, ConfigTerms) of
+                error ->
+                    error;
+                Config ->
+                    {opts, Config}
+            end;
+        {error, Reason} ->
+            log_error("rebar.config consult failed:~n"),
+            file_error(ConfigFile, Reason),
+            error
+    end.
+
+%%------------------------------------------------------------------------------
 %% @doc Apply a rebar.config file.
 %%
 %% This function adds the directories returned by rebar3 to the code path and
@@ -459,23 +365,6 @@ process_rebar3_config(ConfigPath, Terms) ->
     end.
 
 %%------------------------------------------------------------------------------
-%% @doc Read the profile name defined in rebar.config for Rebar3
-%%
-%% Look inside rebar.config to find a special configuration called
-%% `vim_erlang_compiler`.
-%%
-%% E.g. to use the "test" profile:
-%% {vim_erlang_compiler, [
-%%   {profile, "test"}
-%% ]}.
-%%------------------------------------------------------------------------------
-rebar3_get_profile(Terms) ->
-  case proplists:get_value(vim_erlang_compiler, Terms) of
-    undefined -> "default";
-    Options -> proplists:get_value(profile, Options, "default")
-  end.
-
-%%------------------------------------------------------------------------------
 %% @doc Find the rebar3 executable.
 %%
 %% First we try to find rebar3 in the project directory. Second we try to find
@@ -496,6 +385,23 @@ find_rebar3(ConfigPath) ->
                     {ok, Rebar3}
             end
     end.
+
+%%------------------------------------------------------------------------------
+%% @doc Read the profile name defined in rebar.config for Rebar3
+%%
+%% Look inside rebar.config to find a special configuration called
+%% `vim_erlang_compiler`.
+%%
+%% E.g. to use the "test" profile:
+%% {vim_erlang_compiler, [
+%%   {profile, "test"}
+%% ]}.
+%%------------------------------------------------------------------------------
+rebar3_get_profile(Terms) ->
+  case proplists:get_value(vim_erlang_compiler, Terms) of
+    undefined -> "default";
+    Options -> proplists:get_value(profile, Options, "default")
+  end.
 
 %%------------------------------------------------------------------------------
 %% @doc Remove the "warnings_as_errors" option from the given Erlang options.
@@ -529,7 +435,46 @@ load_makefiles([Makefile|_Rest]) ->
     {opts, [{i, absname(Path, "include")},
             {i, absname(Path, "deps")}]}.
 
--compile({nowarn_deprecated_function, [{filename, find_src, 1}]}).
+%%------------------------------------------------------------------------------
+%% @doc Complete the given query.
+%%
+%% This function assumes that the code paths are all set.
+%% @end
+%%------------------------------------------------------------------------------
+-spec run2(list_modules) -> ok;
+          ({list_functions, Module :: atom()}) -> ok.
+run2(list_modules) ->
+    Modules = [filename:basename(File, ".beam")
+               || Dir <- code:get_path(),
+                  File <- filelib:wildcard(filename:join(Dir, "*.beam"))],
+    [io:format("~s\n", [Mod]) || Mod <- lists:sort(Modules)],
+    ok;
+
+run2({list_functions, Mod}) ->
+
+    Edoc =
+        try
+            module_edoc(Mod)
+        catch
+            throw:not_found ->
+                [];
+            error:{badmatch, _} ->
+                [];
+            exit:error ->
+                []
+        end,
+
+    Info =
+        try
+            module_info2(Mod)
+        catch
+            error:undef ->
+                []
+        end,
+
+    FunSpecs = merge_functions(Edoc, Info),
+    [print_function(Fun) || Fun <- FunSpecs ],
+    ok.
 
 module_edoc(Mod) ->
     File = case filename:find_src(Mod) of
@@ -635,6 +580,10 @@ analyze_function(Fun) ->
             {Name, ArgNames, Return}
     end.
 
+get_attribute(Elem, AttrName) ->
+    [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
+    Attr#xmlAttribute.value.
+
 analyze_return(TypeSpecClause) ->
     case xmerl_xpath:string("type/fun/type/*", TypeSpecClause) of
         [ReturnType] ->
@@ -679,10 +628,6 @@ simplify_return({map, _, PairList}) ->
     Pairs = string:join([ simplify_return(Pair) || Pair <- PairList ], ", "),
     "#{" ++ Pairs ++ "}".
 
-get_attribute(Elem, AttrName) ->
-    [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
-    Attr#xmlAttribute.value.
-
 module_info2(Mod) ->
     lists:keysort(1, Mod:module_info(exports)).
 
@@ -716,6 +661,10 @@ print_function({Name, Arity}) ->
 print_function({Name, Args, Return}) ->
     io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
 
+%%%=============================================================================
+%%% Utility functions (in alphabetical order)
+%%%=============================================================================
+
 %%------------------------------------------------------------------------------
 %% @doc Return the absolute name of the file which is in the given directory.
 %%
@@ -730,3 +679,77 @@ print_function({Name, Args, Return}) ->
 -spec absname(Dir :: string(), Filename :: string()) -> string().
 absname(Dir, Filename) ->
     filename:absname(filename:join(Dir, Filename)).
+
+%%------------------------------------------------------------------------------
+%% @doc Print the given error reason in a Vim-friendly and human-friendly way.
+%% @end
+%%------------------------------------------------------------------------------
+-spec file_error(string(), term()) -> error.
+file_error(File, Reason) ->
+    Reason2 = file:format_error(Reason),
+    io:format(user, "~s: ~s~n", [File, Reason2]),
+    error.
+
+%%------------------------------------------------------------------------------
+%% @doc Recursively search upward through the path tree and returns the absolute
+%% path to all files matching the given filenames.
+%% @end
+%%------------------------------------------------------------------------------
+-spec find_files(string(), [string()]) -> [string()].
+find_files("/", Files) ->
+    find_file("/", Files);
+find_files([_|":/"] = Path, Files) ->
+    %% E.g. "C:/". This happens on Windows.
+    find_file(Path, Files);
+find_files(Path, Files) ->
+    %find_files(Path, Files, Files).
+    ParentPath = filename:dirname(Path),
+    find_file(Path, Files) ++
+    find_files(ParentPath, Files).
+
+%%------------------------------------------------------------------------------
+%% @doc Find the first file matching one of the filenames in the given path.
+%% @end
+%%------------------------------------------------------------------------------
+-spec find_file(string(), [string()]) -> [string()].
+find_file(_Path, []) ->
+    [];
+find_file(Path, [File|Rest]) ->
+    AbsFile = absname(Path, File),
+    case filelib:is_regular(AbsFile) of
+        true ->
+            log("Found build file: [~p] ~p~n", [Path, AbsFile]),
+            % Return file and continue searching in parent directory.
+            [AbsFile];
+        false ->
+            find_file(Path, Rest)
+    end.
+
+%%------------------------------------------------------------------------------
+%% @doc Log the given entry if we are in verbose mode.
+%% @end
+%%------------------------------------------------------------------------------
+-spec log(io:format()) -> ok.
+log(Format) ->
+    log(Format, []).
+
+-spec log(io:format(), [term()]) -> ok.
+log(Format, Data) ->
+    case get(verbose) of
+        true ->
+            io:format(Format, Data);
+        _ ->
+            ok
+    end.
+
+%%------------------------------------------------------------------------------
+%% @doc Log the given error.
+%% @end
+%%------------------------------------------------------------------------------
+-spec log_error(io:format()) -> ok.
+log_error(Format) ->
+    io:format(standard_error, Format, []).
+
+-spec log_error(io:format(), [term()]) -> ok.
+log_error(Format, Data) ->
+    io:format(standard_error, Format, Data).
