@@ -139,7 +139,7 @@ Options:
                {list_functions, module()}.
 run(Target) ->
 
-    AbsDir =
+    Path =
         case get(basedir) of
             undefined ->
                 {ok, Cwd} = file:get_cwd(),
@@ -148,9 +148,53 @@ run(Target) ->
                 filename:absname(BaseDir)
         end,
 
-    {BuildSystem, BuildFiles} = guess_build_system(AbsDir),
-    {opts, _} = load_build_files(BuildSystem, AbsDir, BuildFiles),
+    % AppRoot: the directory of the Erlang app.
+    AppRoot =
+        case find_app_root(Path) of
+            no_root ->
+                log("Could not find project root.~n"),
+                Path;
+            Root ->
+                log("Found project root: ~p~n", [Root]),
+                Root
+        end,
+
+    {BuildSystem, BuildFiles} = guess_build_system(AppRoot),
+
+    % ProjectRoot: the directory of the Erlang release (if it exists; otherwise
+    % same as AppRoot).
+    ProjectRoot = get_project_root(BuildSystem, BuildFiles, AppRoot),
+    {opts, _} = load_build_files(BuildSystem, ProjectRoot, BuildFiles),
+
     run2(Target).
+
+%%------------------------------------------------------------------------------
+%% @doc Traverse the directory structure upwards until is_app_root matches.
+%% @end
+%%------------------------------------------------------------------------------
+-spec find_app_root(Path) -> Root when
+      Path :: string(),
+      Root :: string() | 'no_root'.
+find_app_root("/") ->
+    case is_app_root("/") of
+        true -> "/";
+        false -> no_root
+    end;
+find_app_root(Path) ->
+    case is_app_root(Path) of
+        true -> Path;
+        false -> find_app_root(filename:dirname(Path))
+    end.
+
+%%------------------------------------------------------------------------------
+%% @doc Check directory if it is the root of an OTP application.
+%% @end
+%%------------------------------------------------------------------------------
+-spec is_app_root(Path) -> boolean() when
+      Path :: string().
+is_app_root(Path) ->
+    filelib:wildcard("ebin/*.app", Path) /= [] orelse
+    filelib:wildcard("src/*.app.src", Path) /= [].
 
 %%------------------------------------------------------------------------------
 %% @doc Check for some known files and try to guess what build system is being
@@ -201,6 +245,72 @@ guess_build_system(Path, [{BuildSystem, BaseNames}|Rest]) ->
             guess_build_system(Path, Rest);
         BuildFiles ->
             {BuildSystem, BuildFiles}
+    end.
+
+%%------------------------------------------------------------------------------
+%% @doc Get the root directory of the project.
+%% @end
+%%------------------------------------------------------------------------------
+-spec get_project_root(BuildSystem, BuildFiles, AppRoot) -> ProjectRoot when
+      BuildSystem :: build_system(),
+      BuildFiles :: [string()],
+      AppRoot :: string(),
+      ProjectRoot :: string().
+get_project_root(rebar3, BuildFiles, _) ->
+    RebarLocks = [F || F <- BuildFiles,
+                       filename:basename(F) == "rebar.lock"],
+    RebarLocksWithPriority = [{F, rebar3_lock_priority(F)} || F <- RebarLocks],
+    {RebarLock, _Priority} = hd(lists:keysort(2, RebarLocksWithPriority)),
+    filename:dirname(RebarLock);
+get_project_root(_BuildSystem, _Files, AppRoot) ->
+    AppRoot.
+
+%%------------------------------------------------------------------------------
+%% @doc Get the priority of a rebar3 lock file.
+%%
+%% Standalone rebar3 lock files found along the parent paths could end up making
+%% their directories be prioritised in our attempt to search for the true root
+%% of the project.
+%%
+%% This will in turn result in 'rebar.config not found in [...]' kind of errors
+%% being printed out when checking for syntax errors.
+%%
+%% This function attempts to minimise the risk of that happening by prioritising
+%% the found locks according to simple heuristics for how likely are those lock
+%% files to be the genuine article.
+%% @end
+%%------------------------------------------------------------------------------
+-spec rebar3_lock_priority(Filename) -> Result when
+      Filename :: string(),
+      Result :: [non_neg_integer()].
+rebar3_lock_priority(Filename) ->
+    Dir = filename:dirname(Filename),
+    AbsDir = filename:absname(Dir),
+    {ok, Siblings} = file:list_dir(AbsDir),
+    {SiblingDirs, SiblingFiles} = lists:partition(fun filelib:is_dir/1, Siblings),
+    AbsDirComponents = filename:split(AbsDir),
+
+    MightBeRebarProject = lists:member("rebar.config", SiblingFiles),
+    MightBeSingleApp = lists:member("src", SiblingDirs),
+    MightBeUmbrellaApp = lists:member("apps", SiblingDirs),
+    Depth = length(AbsDirComponents),
+
+    if MightBeRebarProject ->
+           % Lock files standing beside a rebar.config file
+           % get a higher priority than to those that don't.
+           % Between them, those higher in file system hierarchy will
+           % themselves get prioritised.
+           [1, Depth];
+       MightBeSingleApp xor MightBeUmbrellaApp ->
+           % Lock files standing beside either a src or apps directory
+           % get a higher priority than those that don't.
+           % Between them, those higher in file system hierarchy will
+           % themselves get prioritised.
+           [2, Depth];
+       true ->
+           % No good criteria remain. Prioritise by placement in
+           % file system hierarchy.
+           [3, Depth]
     end.
 
 %%------------------------------------------------------------------------------
