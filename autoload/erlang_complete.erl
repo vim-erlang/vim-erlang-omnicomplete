@@ -125,7 +125,7 @@ Options:
     io:format(Text).
 
 %%%=============================================================================
-%%% Execution
+%%% Preparation
 %%%=============================================================================
 
 %%------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ Options:
                {list_functions, module()}.
 run(Target) ->
 
-    Path =
+    AbsDir =
         case get(basedir) of
             undefined ->
                 {ok, Cwd} = file:get_cwd(),
@@ -147,6 +147,42 @@ run(Target) ->
             BaseDir ->
                 filename:absname(BaseDir)
         end,
+
+    {_AppRoot, _ProjectRoot, BuildSystemOpts} = load_build_info(AbsDir),
+
+    case BuildSystemOpts of
+        {opts, _Opts} ->
+            run2(Target);
+        error ->
+            error
+    end.
+
+%%%=============================================================================
+%%% Load build information.
+%%%
+%%% This code block is also present in erlang_check.erl in the
+%%% vim-erlang-compiler project. If you modify this code block, please also
+%%% modify erlang_check.erl.
+%%%=============================================================================
+
+%%------------------------------------------------------------------------------
+%% @doc Load information about the build system.
+%%
+%% The `Path' parameter is the absolute path to the parent directory of the
+%% relevant Erlang source file.
+%%
+%% The code paths are set by the function. The include paths are returned in
+%% `BuildSystemOpts'.
+%% @end
+%%------------------------------------------------------------------------------
+-spec load_build_info(Path) -> Result when
+      Path :: string(),
+      Result :: {AppRoot, ProjectRoot, BuildSystemOpts},
+      AppRoot :: string(),
+      ProjectRoot :: string(),
+      BuildSystemOpts ::  {opts, [{atom(), term()}]} |
+                          error.
+load_build_info(Path) ->
 
     % AppRoot: the directory of the Erlang app.
     AppRoot =
@@ -164,9 +200,9 @@ run(Target) ->
     % ProjectRoot: the directory of the Erlang release (if it exists; otherwise
     % same as AppRoot).
     ProjectRoot = get_project_root(BuildSystem, BuildFiles, AppRoot),
-    {opts, _} = load_build_files(BuildSystem, ProjectRoot, BuildFiles),
+    BuildSystemOpts = load_build_files(BuildSystem, ProjectRoot, BuildFiles),
 
-    run2(Target).
+    {AppRoot, ProjectRoot, BuildSystemOpts}.
 
 %%------------------------------------------------------------------------------
 %% @doc Traverse the directory structure upwards until is_app_root matches.
@@ -635,9 +671,9 @@ rebar3_get_extra_profiles(Terms) ->
 %% The problem is that Vim interprets this as a line about an actual warning
 %% about a file called "compile", so it will jump to the "compile" file.
 %%
-%% And anyway, it is fine to show warnings as warnings as not errors: the
-%% developer know whether their project handles warnings as errors and interpret
-%% them accordingly.
+%% And anyway, it is fine to show warnings as warnings not not errors: the
+%% developer knows whether their project handles warnings as errors and can
+%% interpret them accordingly.
 %% @end
 %%------------------------------------------------------------------------------
 -spec remove_warnings_as_errors(ErlOpts) -> ErlOpts when
@@ -661,6 +697,10 @@ load_makefiles([Makefile|_Rest]) ->
     {opts, [{i, absname(Path, "include")},
             {i, absname(Path, "deps")},
             {i, absname(Path, "lib")}]}.
+
+%%%=============================================================================
+%%% Execution
+%%%=============================================================================
 
 %%------------------------------------------------------------------------------
 %% @doc Complete the given query.
