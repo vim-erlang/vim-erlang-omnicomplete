@@ -109,7 +109,7 @@ parse_args([PosPar|OtherArgs], Acc) ->
 print_help() ->
     Text =
 "Usage: erlang_complete.erl [options] [--] list-modules
-        erlang_complete.erl [options] [--] list-functions MODULE
+       erlang_complete.erl [options] [--] list-functions MODULE
 
 Description:
   erlang_complete lists all modules or all functions of a module.
