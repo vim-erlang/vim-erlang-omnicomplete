@@ -37,4 +37,13 @@ Manually:
 - On the web: [user documentation][doc].
 - Inside Vim: `:help vim-erlang-omnicomplete`.
 
+## Contributing
+
+*   Please read the [Contributing][vim-erlang-contributing] section of the
+    vim-erlang README.
+
+*   If you modify `erlang_complete.erl`, please update the tests in in the
+    vim-erlang repository.
+
 [doc]: https://github.com/vim-erlang/vim-erlang-omnicomplete/blob/master/doc/vim-erlang-omnicomplete.txt
+[vim-erlang-contributing]: https://github.com/vim-erlang/vim-erlang#contributing
