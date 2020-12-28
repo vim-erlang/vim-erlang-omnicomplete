@@ -1,32 +1,38 @@
-vim-erlang-omnicomplete
-=======================
+# vim-erlang-omnicomplete
 
 `vim-erlang-omnicomplete` is an Erlang **autocompletion plugin** for Vim.
 
-Installation
-------------
+## Installation
 
 With [pathogen.vim](https://github.com/tpope/vim-pathogen):
 
-- `cd ~/.vim/bundle` and clone this repository.
-- Generate help page:
+1.  `cd ~/.vim/bundle` and clone this repository.
 
-        :Helptags
+2.  Generate help page:
+
+    ```
+    :Helptags
+    ```
 
 Manually:
 
-- Clone this repository.
-- Add the following line to your `.vimrc` (replace the path with your own):
+1.  Clone this repository.
 
-        :set runtimepath^=/path/to/vim-erlang-omnicomplete
+2.  Add the following line to your `.vimrc` (replace the path with your own):
 
-- Restart Vim (or execute the command above).
-- Generate help page:
+    ```
+    :set runtimepath^=/path/to/vim-erlang-omnicomplete
+    ```
 
-        :helptags /path/to/vim-erlang-omnicomplete/doc
+3.  Restart Vim (or execute the command above).
 
-Documentation
--------------
+4.  Generate help page:
+
+    ```
+    :helptags /path/to/vim-erlang-omnicomplete/doc
+    ```
+
+## Documentation
 
 - On the web: [user documentation][doc].
 - Inside Vim: `:help vim-erlang-omnicomplete`.
