@@ -4,33 +4,103 @@
 
 ## Installation
 
-With [pathogen.vim](https://github.com/tpope/vim-pathogen):
+<details>
+<summary>Vim's built-in package manager</summary>
 
-1.  `cd ~/.vim/bundle` and clone this repository.
+This is the recommended installation method if you use at least Vim 8 and you
+don't use another package manager.
 
-2.  Generate help page:
+Information about Vim's built-in package manager: [`:help packages`].
+
+Installation steps:
+
+1.  Clone this repository (you can replace `foo` with the directory name of your
+    choice):
+
+    ```sh
+    $ git clone https://github.com/vim-erlang/vim-erlang-omnicomplete.git \
+          ~/.vim/pack/foo/start/vim-erlang-omnicomplete
+    ```
+
+2.  Restart Vim.
+
+3.  Generate help page (replace `foo` with the same directory name as above):
+
+    ```
+    :helptags ~/.vim/pack/foo/start/vim-erlang-omnicomplete/doc
+    ```
+
+</details>
+
+<details>
+<summary>Pathogen</summary>
+
+Information about Pathogen: [Pathogen repository].
+
+Installation steps:
+
+1.  Clone this repository:
+
+    ```
+    $ git clone https://github.com/vim-erlang/vim-erlang-omnicomplete.git \
+          ~/.vim/bundle/vim-erlang-omnicomplete
+    ```
+
+2.  Restart Vim.
+
+3.  Generate help page:
 
     ```
     :Helptags
     ```
+</details>
 
-Manually:
+<details>
+<summary>Vundle</summary>
 
-1.  Clone this repository.
+Information about Vundle: [Vundle repository].
 
-2.  Add the following line to your `.vimrc` (replace the path with your own):
+Installation steps:
 
-    ```
-    :set runtimepath^=/path/to/vim-erlang-omnicomplete
-    ```
-
-3.  Restart Vim (or execute the command above).
-
-4.  Generate help page:
+1.  Add `vim-erlang-omnicomplete` to your plugin list in `.vimrc` by inserting
+    the line that starts with `Plugin`:
 
     ```
-    :helptags /path/to/vim-erlang-omnicomplete/doc
+    call vundle#begin()
+      [...]
+      Plugin 'vim-erlang/vim-erlang-omnicomplete'
+      [...]
+    call vundle#end()
     ```
+
+2.  Restart Vim.
+
+3.  Run `:PluginInstall`.
+</details>
+
+<details>
+  <summary>Vim-Plug</summary>
+
+Information about Vim-Plug: [vim-plug repository].
+
+Installation steps:
+
+1.  Add `vim-erlang-omnicomplete` to your plugin list in `.vimrc` by inserting the
+    line that starts with `Plug`:
+
+    ```
+    call plug#begin()
+      [...]
+      Plug 'vim-erlang/vim-erlang-omnicomplete'
+      [...]
+    call plug#end()
+    ```
+
+2.  Restart Vim.
+
+3.  Run `:PlugInstall`.
+
+</details>
 
 ## Quick start
 
@@ -89,6 +159,8 @@ This repository contains the following files and directories:
 *   If you modify [`autoload/erlang_complete.erl`], please update the tests in
     in the vim-erlang repository.
 
+<!-- If you modify the list below, please keep the order with `:sort i`. -->
+
 [`:help autoload`]: https://vimhelp.org/eval.txt.html#autoload
 [`:help compl-omni`]: https://vimhelp.org/insert.txt.html#compl-omni
 [`:help completeopt`]: https://vimhelp.org/options.txt.html#%27completeopt%27
@@ -99,4 +171,7 @@ This repository contains the following files and directories:
 [`doc/vim-erlang-omnicomplete.txt`]: doc/vim-erlang-omnicomplete.txt
 [`ftplugin/erlang.vim`]: ftplugin/erlang.vim
 [`plugin/erlang_omnicomplete.vim`]: plugin/erlang_omnicomplete.vim
+[Pathogen repository]: https://github.com/tpope/vim-pathogen
 [vim-erlang-contributing]: https://github.com/vim-erlang/vim-erlang#contributing
+[vim-plug repository]: https://github.com/junegunn/vim-plug
+[Vundle repository]: https://github.com/VundleVim/Vundle.vim
