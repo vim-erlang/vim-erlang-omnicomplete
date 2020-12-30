@@ -246,7 +246,8 @@ function s:ErlangFindLocalFunc(base)
             call add(compl_words, {'word': function_name . '(',
                                   \'abbr': function_name,
                                   \'info': function_name . s:get_preview_line(),
-                                  \'kind': 'f'})
+                                  \'kind': 'f',
+                                  \'dup': 1})
         endif
         let lnum = s:ErlangFindNextNonBlank(lnum)
     endwhile
@@ -264,7 +265,8 @@ function s:ErlangFindLocalFunc(base)
             call add(compl_words, {'word': bif_name,
                                   \'abbr': bif_line,
                                   \'info': bif_line . s:get_preview_line(),
-                                  \'kind': 'f'})
+                                  \'kind': 'f',
+                                  \'dup': 1})
         endif
     endfor
 
@@ -277,7 +279,8 @@ function s:ErlangFindLocalFunc(base)
             call add(compl_words, {'word': module . ':',
                                   \'abbr': module,
                                   \'info': module . s:get_preview_line(),
-                                  \'kind': 'm'})
+                                  \'kind': 'm',
+                                  \'dup': 1})
         endif
     endfor
 
