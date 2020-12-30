@@ -2,6 +2,15 @@
 
 `vim-erlang-omnicomplete` is an Erlang **autocompletion plugin** for Vim.
 
+## Table of Contents
+
+* [Installation](#installation)
+* [Quick start](#quick-start)
+* [Documentation](#documentation)
+* [Development](#development)
+    * [File layout](#file-layout)
+* [Contributing](#contributing)
+
 ## Installation
 
 <details>
