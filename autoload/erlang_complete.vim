@@ -32,6 +32,10 @@ if !exists('g:erlang_completion_cache')
     let g:erlang_completion_cache = 1
 endif
 
+if !exists('g:erlang_completion_preview_help')
+    let g:erlang_completion_preview_help = 1
+end
+
 " Modules cache used to speed up the completion.
 "
 " This dictionary contains completion items that represent functions exported
@@ -63,10 +67,6 @@ let s:modules_cache = {}
 let s:erlang_local_func_beg    = '\(\<[0-9A-Za-z_-]*\|\s*\)$'
 let s:erlang_external_func_beg = '\<[0-9A-Za-z_-]\+:[0-9A-Za-z_-]*$'
 let s:erlang_blank_line        = '^\s*\(%.*\)\?$'
-
-if !exists('g:erlang_completion_preview_help')
-    let g:erlang_completion_preview_help = 1
-end
 
 " Return the informational line displayed at the end of the preview window.
 function s:GetPreviewLine()
