@@ -28,8 +28,6 @@ if has('win32') == 0 && s:starts_with(system('uname'), 'CYGWIN')
     endif
 endif
 
-au BufWritePre *.erl :call erlang_complete#ClearOneCache(expand('%:t:r'))
-
 if !exists('g:erlang_completion_cache')
     let g:erlang_completion_cache = 1
 endif
@@ -79,58 +77,6 @@ function s:get_preview_line()
     else
         return ""
     end
-endfunction
-
-" Main function for completion.
-"
-" - If findstart = 1, then the function must return the column where the base
-"   (the word to be completed) starts.
-" - If findstart = 0, then a:base is the word to be completed, and the
-"   function must return a list with the possible completions.
-"
-" See ":help complete-functions" for the exact specification of this function.
-function erlang_complete#Complete(findstart, base)
-    let lnum = line('.')
-    let column = col('.')
-    let line = strpart(getline('.'), 0, column - 1)
-
-    " 1) If the char to the left of us is not the part of a function call, the
-    " user probably wants to type a local function, a module or a BIF
-    if line[column - 2] !~ '[0-9A-Za-z:_-]'
-        if a:findstart
-            return column
-        else
-            return s:ErlangFindLocalFunc(a:base)
-        endif
-    endif
-
-    " 2) Function in external module
-    if line =~ s:erlang_external_func_beg
-        let delimiter = match(line, ':[0-9A-Za-z_-]*$') + 1
-        if a:findstart
-            return delimiter
-        else
-            let module = matchstr(line[:-2], '\<\k*\>$')
-            return s:ErlangFindExternalFunc(module, a:base)
-        endif
-    endif
-
-    " 3) Local function
-    if line =~ s:erlang_local_func_beg
-        let funcstart = match(line, ':\@<![0-9A-Za-z_-]*$')
-        if a:findstart
-            return funcstart
-        else
-            return s:ErlangFindLocalFunc(a:base)
-        endif
-    endif
-
-    " 4) Unhandled situation
-    if a:findstart
-        return -1
-    else
-        return []
-    endif
 endfunction
 
 " Find the next non-blank line
@@ -287,6 +233,58 @@ function s:ErlangFindLocalFunc(base)
     return compl_words
 endfunction
 
+" Main function for completion.
+"
+" - If findstart = 1, then the function must return the column where the base
+"   (the word to be completed) starts.
+" - If findstart = 0, then a:base is the word to be completed, and the
+"   function must return a list with the possible completions.
+"
+" See ":help complete-functions" for the exact specification of this function.
+function erlang_complete#Complete(findstart, base)
+    let lnum = line('.')
+    let column = col('.')
+    let line = strpart(getline('.'), 0, column - 1)
+
+    " 1) If the char to the left of us is not the part of a function call, the
+    " user probably wants to type a local function, a module or a BIF
+    if line[column - 2] !~ '[0-9A-Za-z:_-]'
+        if a:findstart
+            return column
+        else
+            return s:ErlangFindLocalFunc(a:base)
+        endif
+    endif
+
+    " 2) Function in external module
+    if line =~ s:erlang_external_func_beg
+        let delimiter = match(line, ':[0-9A-Za-z_-]*$') + 1
+        if a:findstart
+            return delimiter
+        else
+            let module = matchstr(line[:-2], '\<\k*\>$')
+            return s:ErlangFindExternalFunc(module, a:base)
+        endif
+    endif
+
+    " 3) Local function
+    if line =~ s:erlang_local_func_beg
+        let funcstart = match(line, ':\@<![0-9A-Za-z_-]*$')
+        if a:findstart
+            return funcstart
+        else
+            return s:ErlangFindLocalFunc(a:base)
+        endif
+    endif
+
+    " 4) Unhandled situation
+    if a:findstart
+        return -1
+    else
+        return []
+    endif
+endfunction
+
 function erlang_complete#ClearAllCache()
     let s:modules_cache = {}
 endfunction
@@ -296,6 +294,9 @@ function erlang_complete#ClearOneCache(mod)
         call remove(s:modules_cache, a:mod)
     endif
 endfunc
+
+" When a module is saved, delete it from the cache.
+autocmd BufWritePre *.erl :call erlang_complete#ClearOneCache(expand('%:t:r'))
 
 " This list comes from http://www.erlang.org/doc/man/erlang.html (minor
 " modifications have been performed).
