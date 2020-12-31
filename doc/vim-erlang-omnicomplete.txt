@@ -93,6 +93,53 @@ g:erlang_completion_preview_help            *g:erlang_completion_preview_help*
         the help message appears; if `0`, it does not appear. The default
         value is `1`.
 
+                                        *g:erlang_completion_zero_arity_paren*
+g:erlang_completion_zero_arity_paren
+        Determines which additional string to insert after completing a
+        zero-arity function. The default value is "()".
+
+        An example scenario:
+
+        1. Type "se" in an Erlang buffer.
+
+        2. Hit |i_CTRL-X_CTRL-O|.
+
+        3. The first element in the completion list is: >
+
+              self() -> pid()
+
+<        4. Vim inserts the function name "self".
+
+        5. Vim also inserts the value of
+           |g:erlang_completion_zero_arity_paren|. With the default value,
+           this means that the inserted text will be: >
+
+               self()
+<
+                                     *g:erlang_completion_nonzero_arity_paren*
+g:erlang_completion_nonzero_arity_paren
+        Determines which additional string to insert after completing a
+        function with non-zero arity (or unknown arity). The default value is
+        "(".
+
+        An example scenario:
+
+        1. Type "list_to_a" in an Erlang buffer.
+
+        2. Hit |i_CTRL-X_CTRL-O|.
+
+        3. The first element in the completion list is: >
+
+               list_to_atom(String) -> atom()
+
+<        4. Vim inserts the function name list_to_atom.
+
+        5. Vim also inserts the value of
+           |g:erlang_completion_nonzero_arity_paren|. With the default value,
+           this means that the inserted text will be: >
+
+               list_to_atom(
+<
 ==============================================================================
 CONFIGURATION REBAR3                   *vim-erlang-omnicomplete-config-rebar3*
 

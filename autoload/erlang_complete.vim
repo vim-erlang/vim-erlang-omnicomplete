@@ -36,6 +36,14 @@ if !exists('g:erlang_completion_preview_help')
     let g:erlang_completion_preview_help = 1
 end
 
+if !exists('g:erlang_completion_zero_arity_paren')
+    let g:erlang_completion_zero_arity_paren = '()'
+end
+
+if !exists('g:erlang_completion_nonzero_arity_paren')
+    let g:erlang_completion_nonzero_arity_paren = '('
+end
+
 " Modules cache used to speed up the completion.
 "
 " This dictionary contains completion items that represent functions exported
@@ -263,21 +271,36 @@ function s:CreateComplItem(type, spec)
     elseif a:type == 'function_name'
         " function_spec example: "my_fun"
         " function_name example: "my_fun"
+        " function_args example: ""
         let target_type = 'function'
         let function_spec = a:spec
         let function_name = a:spec
+        let function_args = ''
     elseif a:type == 'function_spec'
         " function_spec examples:
         "   - "my_fun/2"
         "   - "my_fun(A, B) -> integer()"
         " function_name example: "my_fun"
+        " function_args example:
+        "   - "/2"
+        "   - "(A, B) -> integer()"
         let target_type = 'function'
         let function_spec = a:spec
         let function_name = matchstr(function_spec, '\w*')
+        let function_args = function_spec[len(function_name):]
     endif
 
     if target_type == 'function'
-        let compl_word = function_name . '('
+
+        " Calculate which parenthesis to insert after the function name
+        " (depending on whether the function has a zero arity).
+        if function_args == '/0' || function_args =~# '^()'
+            let paren = g:erlang_completion_zero_arity_paren
+        else
+            let paren = g:erlang_completion_nonzero_arity_paren
+        endif
+
+        let compl_word = function_name . paren
         let compl_abbr = function_spec
         let compl_info = function_spec . s:GetPreviewLine()
         let compl_kind = 'f'
