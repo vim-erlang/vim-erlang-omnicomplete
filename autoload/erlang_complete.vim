@@ -11,18 +11,18 @@
 let s:erlang_complete_file = expand('<sfile>:p:h') . '/erlang_complete.erl'
 
 " Returns whether "substring" is a prefix of "string".
-function s:starts_with(string, substring)
+function s:StartsWith(string, substring)
     let string_start = strpart(a:string, 0, len(a:substring))
     return string_start ==# a:substring
 endfunction
 
 " If we are running in Cygwin, the path needs to be converted.
 " See: https://github.com/vim-erlang/vim-erlang-omnicomplete/issues/21
-if has('win32') == 0 && s:starts_with(system('uname'), 'CYGWIN')
+if has('win32') == 0 && s:StartsWith(system('uname'), 'CYGWIN')
     " Cygwin system. Now check if erlang is Windows or cygwin (currently only
     " Windows is possible)
     let cygwin_base_path = system('cygpath -w /')
-    if !s:starts_with(s:erlang_complete_file, cygwin_base_path)
+    if !s:StartsWith(s:erlang_complete_file, cygwin_base_path)
         " Windows, as expected
         let s:erlang_complete_file = system('cygpath -w ' . s:erlang_complete_file)
     endif
@@ -69,7 +69,7 @@ if !exists('g:erlang_completion_preview_help')
 end
 
 " Return the informational line displayed at the end of the preview window.
-function s:get_preview_line()
+function s:GetPreviewLine()
     if g:erlang_completion_preview_help == 1
         return "\n\nClose preview window: CTRL-W z in normal mode." .
              \ "\nDisable preview window: :set cot-=preview." .
@@ -132,7 +132,7 @@ function s:ErlangFindExternalFunc(module, base)
             " complete-items`.
             let compl_item = {'word': function_name . '(',
                              \'abbr': function_spec,
-                             \'info': function_spec . s:get_preview_line(),
+                             \'info': function_spec . s:GetPreviewLine(),
                              \'kind': 'f',
                              \'dup': 1}
             call add(compl_words, compl_item)
@@ -191,7 +191,7 @@ function s:ErlangFindLocalFunc(base)
             " We found such a local function.
             call add(compl_words, {'word': function_name . '(',
                                   \'abbr': function_name,
-                                  \'info': function_name . s:get_preview_line(),
+                                  \'info': function_name . s:GetPreviewLine(),
                                   \'kind': 'f',
                                   \'dup': 1})
         endif
@@ -210,7 +210,7 @@ function s:ErlangFindLocalFunc(base)
             let bif_name = substitute(bif_line, '(.*', '(', '')
             call add(compl_words, {'word': bif_name,
                                   \'abbr': bif_line,
-                                  \'info': bif_line . s:get_preview_line(),
+                                  \'info': bif_line . s:GetPreviewLine(),
                                   \'kind': 'f',
                                   \'dup': 1})
         endif
@@ -224,7 +224,7 @@ function s:ErlangFindLocalFunc(base)
         if module =~# base
             call add(compl_words, {'word': module . ':',
                                   \'abbr': module,
-                                  \'info': module . s:get_preview_line(),
+                                  \'info': module . s:GetPreviewLine(),
                                   \'kind': 'm',
                                   \'dup': 1})
         endif
