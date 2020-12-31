@@ -44,6 +44,10 @@ if !exists('g:erlang_completion_nonzero_arity_paren')
     let g:erlang_completion_nonzero_arity_paren = '('
 end
 
+if !exists('g:erlang_completion_extend_arity')
+    let g:erlang_completion_extend_arity = 1
+end
+
 " Modules cache used to speed up the completion.
 "
 " This dictionary contains completion items that represent functions exported
@@ -249,6 +253,22 @@ function s:ErlangFindNextNonBlank(lnum)
     return lnum
 endfunction
 
+" Return an argument list that contains a given number of arguments.
+"
+" Example:
+"
+" - Call: s:CreateArgumentList(3)
+" - Return value: "(T1, T2, T3)"
+function s:CreateArgumentList(arity)
+    let argument_list = []
+    let i = 1
+    while i <= a:arity
+        call add(argument_list, 'T' .. i)
+        let i += 1
+    endwhile
+    return '(' .. join(argument_list, ', ') .. ')' 
+endfunction
+
 " Return a completion item.
 "
 " Parameters:
@@ -298,6 +318,13 @@ function s:CreateComplItem(type, spec)
             let paren = g:erlang_completion_zero_arity_paren
         else
             let paren = g:erlang_completion_nonzero_arity_paren
+        endif
+
+        " Extend the function's arity to an argument list (if necessary)
+        if g:erlang_completion_extend_arity && function_args[0] == '/'
+            let arity = str2nr(function_args[1:])
+            let function_args = s:CreateArgumentList(arity) .. ' -> any()'
+            let function_spec = function_name .. function_args
         endif
 
         let compl_word = function_name . paren

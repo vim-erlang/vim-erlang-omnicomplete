@@ -140,6 +140,21 @@ g:erlang_completion_nonzero_arity_paren
 
                list_to_atom(
 <
+g:erlang_completion_extend_arity            g:erlang_completion_extend_arity
+        Determines how to display functions where only the arity is known.
+
+        a. If set to `0`, such functions will be displayed with their arity,
+           for example: >
+
+               module_info/1
+
+<        b. If set to `1`, a type spec will be generated for such functions,
+           for example: >
+
+               module_info(T1) -> any()
+
+<        The default value is `1`.
+
 ==============================================================================
 CONFIGURATION REBAR3                   *vim-erlang-omnicomplete-config-rebar3*
 
