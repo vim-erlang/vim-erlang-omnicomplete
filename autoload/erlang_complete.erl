@@ -121,6 +121,21 @@ Options:
   --basedir DIR
                 When searching for rebar.config files, the search will start
                 from this directory.
+
+Examples:
+
+  $ erlang_complete.erl list-modules | head -n 5
+  ELDAPv3
+  OTP-PUB-KEY
+  PKCS-FRAME
+  alarm_handler
+  application
+
+  $ erlang_complete.erl list-functions my_module
+  module_info/0
+  module_info/1
+  my_fun_1(Float) -> integer()
+  my_fun_2(Integer) -> float()
 ",
     io:format(Text).
 
