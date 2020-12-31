@@ -241,6 +241,55 @@ function s:ErlangFindNextNonBlank(lnum)
     return lnum
 endfunction
 
+" Return a completion item.
+"
+" Parameters:
+"
+" - type: Type of the "spec" parameter. Either 'module', 'function_name' or
+"   'function_spec'.
+" - spec: A module name, a function name or a function specification.
+"
+" See the documentation of the completion items in ":help complete-items".
+function s:CreateComplItem(type, spec)
+
+    if a:type == 'module'
+        " module example = "my_mod"
+        let target_type = 'module'
+        let module = a:spec
+        let compl_word = module . ':'
+        let compl_abbr = module
+        let compl_info = module . s:GetPreviewLine()
+        let compl_kind = 'm'
+    elseif a:type == 'function_name'
+        " function_spec example: "my_fun"
+        " function_name example: "my_fun"
+        let target_type = 'function'
+        let function_spec = a:spec
+        let function_name = a:spec
+    elseif a:type == 'function_spec'
+        " function_spec examples:
+        "   - "my_fun/2"
+        "   - "my_fun(A, B) -> integer()"
+        " function_name example: "my_fun"
+        let target_type = 'function'
+        let function_spec = a:spec
+        let function_name = matchstr(function_spec, '\w*')
+    endif
+
+    if target_type == 'function'
+        let compl_word = function_name . '('
+        let compl_abbr = function_spec
+        let compl_info = function_spec . s:GetPreviewLine()
+        let compl_kind = 'f'
+    endif
+
+    return {'word': compl_word,
+           \'abbr': compl_abbr,
+           \'info': compl_info,
+           \'kind': compl_kind,
+           \'dup': 1}
+endfunction
+
 " Find external function names
 "
 " Parameters:
@@ -276,14 +325,7 @@ function s:ErlangFindExternalFunc(module, base)
         " - When the function has a type spec, its function_spec will be e.g.
         "   "f(A, B)".
         if match(function_spec, a:base) == 0
-            let function_name = matchstr(function_spec, a:base . '\w*')
-            " See the documentation of the completion items in `:help
-            " complete-items`.
-            let compl_item = {'word': function_name . '(',
-                             \'abbr': function_spec,
-                             \'info': function_spec . s:GetPreviewLine(),
-                             \'kind': 'f',
-                             \'dup': 1}
+            let compl_item = s:CreateComplItem('function_spec', function_spec)
             call add(compl_words, compl_item)
 
             " Populate the cache only when iterating over all the
@@ -338,11 +380,8 @@ function s:ErlangFindLocalFunc(base)
         let function_name = matchstr(line, base . '[0-9A-Za-z_-]\+(\@=')
         if function_name != ""
             " We found such a local function.
-            call add(compl_words, {'word': function_name . '(',
-                                  \'abbr': function_name,
-                                  \'info': function_name . s:GetPreviewLine(),
-                                  \'kind': 'f',
-                                  \'dup': 1})
+            let compl_item = s:CreateComplItem('function_name', function_name)
+            call add(compl_words, compl_item)
         endif
         let lnum = s:ErlangFindNextNonBlank(lnum)
     endwhile
@@ -354,14 +393,10 @@ function s:ErlangFindLocalFunc(base)
     endif
 
     " Find BIFs that start with `base`.
-    for bif_line in s:auto_imported_bifs
-        if bif_line =~# base
-            let bif_name = substitute(bif_line, '(.*', '(', '')
-            call add(compl_words, {'word': bif_name,
-                                  \'abbr': bif_line,
-                                  \'info': bif_line . s:GetPreviewLine(),
-                                  \'kind': 'f',
-                                  \'dup': 1})
+    for bif_spec in s:auto_imported_bifs
+        if bif_spec =~# base
+            let compl_item = s:CreateComplItem('function_spec', bif_spec)
+            call add(compl_words, compl_item)
         endif
     endfor
 
@@ -371,11 +406,8 @@ function s:ErlangFindLocalFunc(base)
                         \' --basedir ' . fnameescape(expand('%:p:h')))
     for module in split(modules, '\n')
         if module =~# base
-            call add(compl_words, {'word': module . ':',
-                                  \'abbr': module,
-                                  \'info': module . s:GetPreviewLine(),
-                                  \'kind': 'm',
-                                  \'dup': 1})
+            let compl_item = s:CreateComplItem('module', module)
+            call add(compl_words, compl_item)
         endif
     endfor
 
