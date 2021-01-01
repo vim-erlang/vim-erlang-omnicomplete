@@ -21,6 +21,70 @@
 
 -type build_system() :: rebar | rebar3 | makefile.
 
+-type function_spec() ::
+        {FunName :: atom(),
+         ArgNames :: [string()],
+         ReturnType :: string()} |
+        {FunName :: atom(),
+         Arity :: non_neg_integer()}.
+%% The specification of a function.
+%%
+%% If we are lucky, we know the names of arguments and the return type. If we
+%% are less lucky, then we know only the arity.
+
+-type simplified_xml_element() ::
+        {XmlTag :: atom(),
+         Attributes :: [{Name :: atom(), Value :: string()}],
+         Content :: [(ChildXmlElement :: simplified_xml_element()) |
+                     (Text :: string())]}.
+%% A `simplified_xml_element()' term represents an XML element.
+%%
+%% `xmerl_lib:simplify_element/1' can be used to convert an #xmlElement{} record
+%% into a `simplified_xml_element()' term.
+%%
+%% An example `simplified_xml_element()' term:
+%%
+%% ```
+%% [{function,
+%%   [{name,"my_fun"},{arity,"1"},{exported,"yes"},{label,"my_fun-1"}],
+%%   [{args,[],
+%%     [{arg,[]
+%%       [{argName,[],
+%%         ["X1"]}]}]},
+%%    {typespec,[],
+%%     [{erlangName,[{name,"my_fun"}],[]},
+%%      {type,[],
+%%       [{'fun',[],
+%%         [{argtypes,[],
+%%           [{type, [{name,"X1"}],
+%%             [{abstype,[],
+%%               [{erlangName,[{name,"integer"}],[]}]}]}]},
+%%          {type,[],
+%%           [{abstype,[],
+%%             [{erlangName,[{name,"float"}],[]}]}]}]}]}]},
+%% '''
+%%
+%% This term represents the following XML structure (with pseudo-XML notation):
+%%
+%% ```
+%% <function name="my_fun" arity="1" exported="yes" label="my_fun-1">
+%%   <args>
+%%     <arg>
+%%       <argName>
+%%         X1
+%%   <typespec>
+%%     <erlangName name="my_fun">
+%%     <type>
+%%       <fun>
+%%         <argtypes>
+%%           <type name="X1">
+%%             <abstype>
+%%               <erlangName name="integer">
+%%         <type>
+%%           <abstype>
+%%             <erlangName name="float">
+%% '''
+
 %%%=============================================================================
 %%% Main function
 %%%=============================================================================
@@ -723,13 +787,15 @@ load_makefiles([Makefile|_Rest]) ->
 %%%=============================================================================
 
 %%------------------------------------------------------------------------------
-%% @doc Complete the given query.
+%% @doc Print the completions for a target.
 %%
 %% This function assumes that the code paths are all set.
 %% @end
 %%------------------------------------------------------------------------------
--spec run2(list_modules) -> ok;
-          ({list_functions, Module :: atom()}) -> ok.
+-spec run2(Target) -> ok when
+      Target :: list_modules |
+                {list_functions, module()}.
+
 run2(list_modules) ->
     Modules = [filename:basename(File, ".beam")
                || Dir <- code:get_path(),
@@ -763,6 +829,15 @@ run2({list_functions, Mod}) ->
     [print_function(Fun) || Fun <- FunSpecs ],
     ok.
 
+%%------------------------------------------------------------------------------
+%% @doc Return the specification of all exported functions.
+%%
+%% The returned list is sorted by function name.
+%% @end
+%%------------------------------------------------------------------------------
+-spec module_edoc(Mod) -> Result when
+      Mod :: module(),
+      Result :: [function_spec()].
 module_edoc(Mod) ->
     File =
         case filename:find_src(Mod) of
@@ -788,6 +863,16 @@ module_edoc(Mod) ->
     FunSpecs = lists:map(fun analyze_function/1, Funs),
     lists:keysort(1, FunSpecs).
 
+%%------------------------------------------------------------------------------
+%% @doc Convert the path of a BEAM file to the path of the corresponding Erlang
+%% source file.
+%%
+%% This is only a heuristic that we try if `filename:find_src/1' fails.
+%% @end
+%%------------------------------------------------------------------------------
+-spec beam_to_src_path(BeamPath) -> Result when
+      BeamPath :: file:filename(),
+      Result :: file:filename_all().
 beam_to_src_path(BeamPath) ->
     PathParts = filename:split(BeamPath),
     {Dirs, [BeamFile]} = lists:split(length(PathParts) - 1, PathParts),
@@ -806,53 +891,77 @@ beam_to_src_path(BeamPath) ->
     end,
     filename:join(Dirs3 ++ [beam_to_src_file(BeamFile)]).
 
+%%------------------------------------------------------------------------------
+%% @doc Convert "<name>.beam" into "<name>.erl".
+%% @end
+%%------------------------------------------------------------------------------
+-spec beam_to_src_file(BeamFile) -> Result when
+      BeamFile :: file:filename(),
+      Result :: file:filename().
 beam_to_src_file(BeamFile) ->
     [ModName, "beam"] = string:tokens(BeamFile, "."),
     ModName ++ ".erl".
 
+%%------------------------------------------------------------------------------
+%% @doc Return the specification of a function.
+%%
+%% Example (with pseudo-XML notation):
+%% 
+%% ```
+%% % Original Erlang function
+%% -spec my_fun(integer()) -> float();
+%%             (string()) -> binary().
+%% my_fun(_) ->
+%%     ok.
+%%
+%% FunXmlElement =
+%%
+%%     <function name="my_fun" arity="1" exported="yes" label="my_fun-1">
+%%
+%%       <!-- Type spec clause 1 -->
+%%       <args>
+%%         <arg>
+%%           <argName>
+%%             X1
+%%       <typespec>
+%%         <erlangName name="my_fun">
+%%         <type>
+%%           <fun>
+%%             <argtypes>
+%%               <type name="X1">
+%%                 <abstype>
+%%                   <erlangName name="integer">
+%%             <type>
+%%               <abstype>
+%%                 <erlangName name="float">
+%%
+%%       <!-- Type spec clause 2. These XML elements exist only when Erlang
+%%            OTP version is at least 23. The analyze_function function
+%%            currently ignores these XML elements. -->
+%%       <args>
+%%         <arg>
+%%           <argName>
+%%             X1
+%%       <typespec>
+%%         <erlangName name="my_fun">
+%%         <type>
+%%           <fun>
+%%             <argtypes>
+%%               <type name="X1">
+%%                 <abstype>
+%%                   <erlangName name="string">
+%%             <type>
+%%               <abstype>
+%%                 <erlangName name="binary">
+%%
+%% Result = {my_fun, ["X1"], "float()"}
+%% '''
+%% @end
+%%------------------------------------------------------------------------------
+-spec analyze_function(FunXmlElement) -> Result when
+      FunXmlElement :: #xmlElement{},
+      Result :: function_spec().
 analyze_function(Fun) ->
-    % Example Erlang function:
-    %
-    %     -spec my_fun(integer()) -> float();
-    %                 (string()) -> binary().
-    %     my_fun(_) ->
-    %         ok.
-    %
-    % Example `Fun' XML node (obvious closing tags marked implicitly with
-    % indentation):
-    %
-    %     <function name="my_fun"
-    %               arity="1"
-    %               exported="yes"
-    %               label="my_fun-1">
-    %         <args>
-    %           <arg>
-    %             <argName>X1</argName>
-    %         <typespec>
-    %           <erlangName name="my_fun" />
-    %           <type>
-    %             <fun>
-    %               <argtypes>
-    %                 <type name="X1">
-    %                   <abstype>
-    %                     <erlangName name="integer" />
-    %               <type>
-    %                 <abstype>
-    %                   <erlangName name="float" />
-    %         <args>
-    %           <arg>
-    %             <argName>X1</argName>
-    %         <typespec>
-    %           <erlangName name="my_fun">
-    %           <type>
-    %             <fun>
-    %               <argtypes>
-    %                 <type name="X1">
-    %                   <abstype>
-    %                     <erlangName name="string" />
-    %               <type>
-    %                 <abstype>
-    %                   <erlangName name="binary" />
     Name = list_to_atom(get_attribute(Fun, "name")),
     TypeSpecClauses = xmerl_xpath:string("typespec", Fun),
     case TypeSpecClauses of
@@ -861,8 +970,9 @@ analyze_function(Fun) ->
             Arity = get_attribute(Fun, "arity"),
             {Name, list_to_integer(Arity)};
         [TypeSpecClause|_OtherTypeSpecClauses] ->
-            % A function might have more than one type spec clauses. We
-            % currently show only the first one and ignore the rest.
+            % A function might have more than one type spec clauses (but only if
+            % Erlang OTP version is at least 23). We currently show only the
+            % first one and ignore the rest.
             Args0 = xmerl_xpath:string("type/fun/argtypes/type",
                                        TypeSpecClause),
             ArgNames = lists:map(fun(Arg) -> get_attribute(Arg, "name") end,
@@ -871,10 +981,58 @@ analyze_function(Fun) ->
             {Name, ArgNames, Return}
     end.
 
+%%------------------------------------------------------------------------------
+%% @doc Return the value of an attribute in an XML element.
+%%
+%% Example (with pseudo-XML notation):
+%% 
+%% ```
+%% Elem = <function name="complete_a1"
+%%                  arity="0"
+%%                  exported="yes"
+%%                  label="complete_a1-0">
+%%          [...]
+%% AttrName = "arity"
+%% Result = "0"
+%% ```
+%%
+%% @end
+%%------------------------------------------------------------------------------
+-spec get_attribute(Elem, AttrName) -> Result when
+      Elem :: #xmlElement{},
+      AttrName :: string(),
+      Result :: iolist() | atom() | integer().
 get_attribute(Elem, AttrName) ->
     [Attr] = xmerl_xpath:string("@" ++ AttrName, Elem),
     Attr#xmlAttribute.value.
 
+%%------------------------------------------------------------------------------
+%% @doc Return the return type of a function as a string.
+%%
+%% Example (in pseudo-XML notation):
+%% 
+%% ```
+%% TypeSpecClause =
+%%     <typespec>
+%%       <erlangName name="my_fun">
+%%       <type>
+%%         <fun>
+%%           <argtypes>
+%%             <type name="X1">
+%%               <abstype>
+%%                 <erlangName name="integer">
+%%           <type>
+%%             <abstype>
+%%               <erlangName name="float">
+%% Result = "float()"
+%%
+%% If the type spec clause does not contain the return value, "?" is returned.
+%% '''
+%% @end
+%%------------------------------------------------------------------------------
+-spec analyze_return(TypeSpecClause) -> Result when
+      TypeSpecClause :: #xmlElement{},
+      Result :: string().
 analyze_return(TypeSpecClause) ->
     case xmerl_xpath:string("type/fun/type/*", TypeSpecClause) of
         [ReturnType] ->
@@ -883,6 +1041,20 @@ analyze_return(TypeSpecClause) ->
             "?"
     end.
 
+%%------------------------------------------------------------------------------
+%% @doc Return a function's return type as a string.
+%%
+%% Example:
+%% 
+%% ```
+%% SimplifiedTypeSpecClause = {abstype,[],[{erlangName,[{name,"float"}],[]}]}
+%% Result = "float()"
+%% '''
+%% @end
+%%------------------------------------------------------------------------------
+-spec simplify_return(SimplifiedTypeSpecClause) -> Result when
+      SimplifiedTypeSpecClause :: simplified_xml_element(),
+      Result :: string().
 simplify_return({typevar, [{name, Name}], _}) ->
     Name;
 simplify_return({type, _, [Type]}) ->
@@ -919,9 +1091,46 @@ simplify_return({map, _, PairList}) ->
     Pairs = string:join([ simplify_return(Pair) || Pair <- PairList ], ", "),
     "#{" ++ Pairs ++ "}".
 
+%%------------------------------------------------------------------------------
+%% @doc Get the specifications of all exported functions.
+%%
+%% The result will contain only arities. For example:
+%%
+%% ```
+%% > lists:keysort(1, lists:module_info(exports)).
+%% [{all,2},
+%%  {any,2},
+%%  {append,2},
+%%  {append,1},
+%%  {concat,1},
+%% '''
+%%
+%% The returned list is sorted by function name.
+%% @end
+%%------------------------------------------------------------------------------
+-spec module_info2(Mod) -> Result when
+      Mod :: module(),
+      Result :: [function_spec()].
 module_info2(Mod) ->
     lists:keysort(1, Mod:module_info(exports)).
 
+%%------------------------------------------------------------------------------
+%% @doc Merge functions specifications read with edoc and with `module_info'.
+%%
+%% Notes:
+%%
+%% 1.  This function assumes that the input lists are sorted.
+%%
+%% 2.  If a function is present in both lists, edoc wins. This is because the
+%%     `module_info' function specification contains only the arity, so the edoc
+%%     function specification is either the same or better (if it contains the
+%%     argument list and return type).
+%% @end
+%%------------------------------------------------------------------------------
+-spec merge_functions(Edoc, Info) -> Result when
+      Edoc :: [function_spec()],
+      Info :: [function_spec()],
+      Result :: [function_spec()].
 merge_functions(Edoc, Info) ->
     merge_functions(Edoc, Info, []).
 
@@ -948,10 +1157,19 @@ merge_functions(Edoc, Info, Funs) ->
             merge_functions(Edoc, T2, [H2 | Funs])
     end.
 
-print_function({Name, Arity}) ->
-    io:format("~s/~B~n", [Name, Arity]);
-print_function({Name, Args, Return}) ->
-    io:format("~s(~s) -> ~s~n", [Name, string:join(Args, ", "), Return]).
+%%------------------------------------------------------------------------------
+%% @doc Print a function speficiation in a human-friendly way.
+%%
+%% When this script is called by the plugin, the printed lines are sent back to
+%% Vim, who shows them to the user in the completion menu.
+%% @end
+%%------------------------------------------------------------------------------
+-spec print_function(Fun) -> ok when
+      Fun :: function_spec().
+print_function({FunName, Arity}) ->
+    io:format("~s/~B~n", [FunName, Arity]);
+print_function({FunName, Args, ReturnType}) ->
+    io:format("~s(~s) -> ~s~n", [FunName, string:join(Args, ", "), ReturnType]).
 
 %%%=============================================================================
 %%% Utility functions (in alphabetical order)
@@ -968,7 +1186,10 @@ print_function({Name, Args, Return}) ->
 %% - Result: "/home/my/projects/erlang/rebar.config"
 %% @end
 %%------------------------------------------------------------------------------
--spec absname(Dir :: string(), Filename :: string()) -> string().
+-spec absname(Dir, Filename) -> Result when
+      Dir :: string(),
+      Filename :: string(),
+      Result :: string().
 absname(Dir, Filename) ->
     filename:absname(filename:join(Dir, Filename)).
 
@@ -976,7 +1197,9 @@ absname(Dir, Filename) ->
 %% @doc Print the given error reason in a Vim-friendly and human-friendly way.
 %% @end
 %%------------------------------------------------------------------------------
--spec file_error(string(), term()) -> error.
+-spec file_error(File, Reason) -> error when
+      File :: string(),
+      Reason :: term().
 file_error(File, Reason) ->
     Reason2 = file:format_error(Reason),
     io:format(user, "~s: ~s~n", [File, Reason2]),
@@ -986,7 +1209,10 @@ file_error(File, Reason) ->
 %% @doc Find the first file matching one of the filenames in the given path.
 %% @end
 %%------------------------------------------------------------------------------
--spec find_file(string(), [string()]) -> [string()].
+-spec find_file(Path, Files) -> Result when
+      Path :: string(),
+      Files :: [string()],
+      Result :: [string()].
 find_file(_Path, []) ->
     [];
 find_file(Path, [File|Rest]) ->
@@ -1005,14 +1231,16 @@ find_file(Path, [File|Rest]) ->
 %% path to all files matching the given filenames.
 %% @end
 %%------------------------------------------------------------------------------
--spec find_files(string(), [string()]) -> [string()].
+-spec find_files(Path, Files) -> Result when
+      Path :: string(),
+      Files :: [string()],
+      Result :: [string()].
 find_files("/", Files) ->
     find_file("/", Files);
 find_files([_|":/"] = Path, Files) ->
-    %% E.g. "C:/". This happens on Windows.
+    % E.g. "C:/". This happens on Windows.
     find_file(Path, Files);
 find_files(Path, Files) ->
-    %find_files(Path, Files, Files).
     ParentPath = filename:dirname(Path),
     find_file(Path, Files) ++
     find_files(ParentPath, Files).
@@ -1021,11 +1249,18 @@ find_files(Path, Files) ->
 %% @doc Log the given entry if we are in verbose mode.
 %% @end
 %%------------------------------------------------------------------------------
--spec log(io:format()) -> ok.
+-spec log(Format) -> ok when
+      Format :: io:format().
 log(Format) ->
     log(Format, []).
 
--spec log(io:format(), [term()]) -> ok.
+%%------------------------------------------------------------------------------
+%% @doc Log the given entry if we are in verbose mode.
+%% @end
+%%------------------------------------------------------------------------------
+-spec log(Format, Data) -> ok when
+      Format :: io:format(),
+      Data :: [term()].
 log(Format, Data) ->
     case get(verbose) of
         true ->
@@ -1038,10 +1273,17 @@ log(Format, Data) ->
 %% @doc Log the given error.
 %% @end
 %%------------------------------------------------------------------------------
--spec log_error(io:format()) -> ok.
+-spec log_error(Format) -> ok when
+      Format :: io:format().
 log_error(Format) ->
     io:format(standard_error, Format, []).
 
--spec log_error(io:format(), [term()]) -> ok.
+%%------------------------------------------------------------------------------
+%% @doc Log the given error.
+%% @end
+%%------------------------------------------------------------------------------
+-spec log_error(Format, Data) -> ok when
+      Format :: io:format(),
+      Data :: [term()].
 log_error(Format, Data) ->
     io:format(standard_error, Format, Data).
