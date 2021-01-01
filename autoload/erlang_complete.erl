@@ -874,21 +874,27 @@ module_edoc(Mod) ->
       BeamPath :: file:filename(),
       Result :: file:filename_all().
 beam_to_src_path(BeamPath) ->
+    % Example:
+    % - PathParts = ["myproject", "apps", "ebin", "mymodule.beam"]
+    % - Dirs = ["myproject", "apps", "ebin"]
+    % - BeamFile = "mymodule.beam"
+    % - Dirs2 = ["myproject", "apps"]
+    % - DirLast = "ebin"
     PathParts = filename:split(BeamPath),
     {Dirs, [BeamFile]} = lists:split(length(PathParts) - 1, PathParts),
     {Dirs2, [DirsLast]} = lists:split(length(Dirs) - 1, Dirs),
-    case filename:pathtype(BeamPath) of
-        absolute ->
-            Dirs3 =
+    Dirs3 =
+        case filename:pathtype(BeamPath) of
+            absolute ->
                 case DirsLast of
                     "ebin" ->
                         Dirs2 ++ ["src"];
                     _ ->
                         Dirs
                 end;
-        relative ->
-            Dirs3 = Dirs
-    end,
+            relative ->
+                Dirs
+        end,
     filename:join(Dirs3 ++ [beam_to_src_file(BeamFile)]).
 
 %%------------------------------------------------------------------------------
