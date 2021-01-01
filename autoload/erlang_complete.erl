@@ -764,24 +764,25 @@ run2({list_functions, Mod}) ->
     ok.
 
 module_edoc(Mod) ->
-    File = case filename:find_src(Mod) of
-        {error, _} ->
-            BeamFile = atom_to_list(Mod) ++ ".beam",
-            case code:where_is_file(BeamFile) of
-                non_existing ->
-                    throw(not_found);
-                BeamPath ->
-                    SrcPath = beam_to_src_path(BeamPath),
-                    case filelib:is_regular(SrcPath) of
-                        true ->
-                            SrcPath;
-                        false ->
-                            throw(not_found)
-                    end
-            end;
-        {File0, _} ->
-            File0 ++ ".erl"
-    end,
+    File =
+        case filename:find_src(Mod) of
+            {error, _} ->
+                BeamFile = atom_to_list(Mod) ++ ".beam",
+                case code:where_is_file(BeamFile) of
+                    non_existing ->
+                        throw(not_found);
+                    BeamPath ->
+                        SrcPath = beam_to_src_path(BeamPath),
+                        case filelib:is_regular(SrcPath) of
+                            true ->
+                                SrcPath;
+                            false ->
+                                throw(not_found)
+                        end
+                end;
+            {File0, _} ->
+                File0 ++ ".erl"
+        end,
     {_, Doc} = edoc:get_doc(File),
     Funs = xmerl_xpath:string("/module/functions/function", Doc),
     FunSpecs = lists:map(fun analyze_function/1, Funs),
@@ -793,12 +794,13 @@ beam_to_src_path(BeamPath) ->
     {Dirs2, [DirsLast]} = lists:split(length(Dirs) - 1, Dirs),
     case filename:pathtype(BeamPath) of
         absolute ->
-            Dirs3 = case DirsLast of
-                "ebin" ->
-                    Dirs2 ++ ["src"];
-                _ ->
-                    Dirs
-            end;
+            Dirs3 =
+                case DirsLast of
+                    "ebin" ->
+                        Dirs2 ++ ["src"];
+                    _ ->
+                        Dirs
+                end;
         relative ->
             Dirs3 = Dirs
     end,
@@ -932,10 +934,11 @@ merge_functions(Edoc, [], Funs) ->
 merge_functions(Edoc, Info, Funs) ->
     [H1 | T1] = Edoc,
     [H2 = {K2, _} | T2] = Info,
-    K1 = case H1 of
-        {Name, _, _} -> Name;
-        {Name, _} -> Name
-    end,
+    K1 =
+        case H1 of
+            {Name, _, _} -> Name;
+            {Name, _} -> Name
+        end,
     if
         K1 == K2 ->
             merge_functions(T1, T2, [H1 | Funs]);
