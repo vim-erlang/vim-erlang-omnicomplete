@@ -338,7 +338,8 @@ rebar3_lock_priority(Filename) ->
     Dir = filename:dirname(Filename),
     AbsDir = filename:absname(Dir),
     {ok, Siblings} = file:list_dir(AbsDir),
-    {SiblingDirs, SiblingFiles} = lists:partition(fun filelib:is_dir/1, Siblings),
+    {SiblingDirs, SiblingFiles} =
+        lists:partition(fun filelib:is_dir/1, Siblings),
     AbsDirComponents = filename:split(AbsDir),
 
     MightBeRebarProject = lists:member("rebar.config", SiblingFiles),
@@ -579,8 +580,12 @@ process_rebar3_config(ConfigPath, Terms) ->
             %
             % Documentation for _checkouts dependencies:
             % https://www.rebar3.org/docs/dependencies#section-checkout-dependencies
-            code:add_pathsa(filelib:wildcard(absname(ConfigPath, "_checkouts") ++ "/*/ebin")),
-            code:add_pathsa(filelib:wildcard(absname(ConfigPath, "_build") ++ "/default/checkouts/*/ebin")),
+            code:add_pathsa(
+              filelib:wildcard(absname(ConfigPath, "_checkouts") ++
+                               "/*/ebin")),
+            code:add_pathsa(
+              filelib:wildcard(absname(ConfigPath, "_build") ++
+                               "/default/checkouts/*/ebin")),
 
             lists:foreach(
               fun({ProfileName, Deps}) ->
