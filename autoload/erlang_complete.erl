@@ -983,23 +983,6 @@ file_error(File, Reason) ->
     error.
 
 %%------------------------------------------------------------------------------
-%% @doc Recursively search upward through the path tree and returns the absolute
-%% path to all files matching the given filenames.
-%% @end
-%%------------------------------------------------------------------------------
--spec find_files(string(), [string()]) -> [string()].
-find_files("/", Files) ->
-    find_file("/", Files);
-find_files([_|":/"] = Path, Files) ->
-    %% E.g. "C:/". This happens on Windows.
-    find_file(Path, Files);
-find_files(Path, Files) ->
-    %find_files(Path, Files, Files).
-    ParentPath = filename:dirname(Path),
-    find_file(Path, Files) ++
-    find_files(ParentPath, Files).
-
-%%------------------------------------------------------------------------------
 %% @doc Find the first file matching one of the filenames in the given path.
 %% @end
 %%------------------------------------------------------------------------------
@@ -1016,6 +999,23 @@ find_file(Path, [File|Rest]) ->
         false ->
             find_file(Path, Rest)
     end.
+
+%%------------------------------------------------------------------------------
+%% @doc Recursively search upward through the path tree and returns the absolute
+%% path to all files matching the given filenames.
+%% @end
+%%------------------------------------------------------------------------------
+-spec find_files(string(), [string()]) -> [string()].
+find_files("/", Files) ->
+    find_file("/", Files);
+find_files([_|":/"] = Path, Files) ->
+    %% E.g. "C:/". This happens on Windows.
+    find_file(Path, Files);
+find_files(Path, Files) ->
+    %find_files(Path, Files, Files).
+    ParentPath = filename:dirname(Path),
+    find_file(Path, Files) ++
+    find_files(ParentPath, Files).
 
 %%------------------------------------------------------------------------------
 %% @doc Log the given entry if we are in verbose mode.
