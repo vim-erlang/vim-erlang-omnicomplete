@@ -861,8 +861,10 @@ analyze_function(Fun) ->
         [TypeSpecClause|_OtherTypeSpecClauses] ->
             % A function might have more than one type spec clauses. We
             % currently show only the first one and ignore the rest.
-            Args0 = xmerl_xpath:string("type/fun/argtypes/type", TypeSpecClause),
-            ArgNames = lists:map(fun(Arg) -> get_attribute(Arg, "name") end, Args0),
+            Args0 = xmerl_xpath:string("type/fun/argtypes/type",
+                                       TypeSpecClause),
+            ArgNames = lists:map(fun(Arg) -> get_attribute(Arg, "name") end,
+                                 Args0),
             Return = analyze_return(TypeSpecClause),
             {Name, ArgNames, Return}
     end.
