@@ -167,7 +167,7 @@ This repository contains the following files and directories:
 
 *   If you modify [`autoload/erlang_complete.erl`], please:
 
-    -   update the tests in in the [`vim-erlang`] repository
+    -   update the tests in the [`vim-erlang`] repository
 
     -   also modify `vim-erlang-compiler` (if you modify the
         ["load build information" code block][common-code-block])
@@ -185,7 +185,7 @@ This repository contains the following files and directories:
 [`ftplugin/erlang.vim`]: ftplugin/erlang.vim
 [`plugin/erlang_omnicomplete.vim`]: plugin/erlang_omnicomplete.vim
 [`vim-erlang`]: https://github.com/vim-erlang/vim-erlang
-[common-code-block]: https://github.com/hcs42/vim-erlang-omnicomplete/blob/448a9feae5a284bf36748e611111d183cfa52ab5/autoload/erlang_complete.erl#L160-L700
+[common-code-block]: https://github.com/vim-erlang/vim-erlang-omnicomplete/blob/448a9feae5a284bf36748e611111d183cfa52ab5/autoload/erlang_complete.erl#L160-L700
 [Pathogen repository]: https://github.com/tpope/vim-pathogen
 [vim-erlang-contributing]: https://github.com/vim-erlang/vim-erlang#contributing
 [vim-plug repository]: https://github.com/junegunn/vim-plug
