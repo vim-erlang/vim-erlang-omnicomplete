@@ -231,7 +231,13 @@ run(Target) ->
 
     case BuildSystemOpts of
         {opts, _Opts} ->
-            run2(Target);
+            try
+                run2(Target)
+            catch
+                throw:error ->
+                    % The error messages were already printed.
+                    ok
+            end;
         error ->
             error
     end.
@@ -788,6 +794,19 @@ load_makefiles([Makefile|_Rest]) ->
 
 %%------------------------------------------------------------------------------
 %% @doc Print the completions for a target.
+%% 
+%% If there was no error, then the function first prints the line
+%% "execution_successful", and it prints the completion results afterwards. If
+%% there was an error, then the errors are printed.
+%%
+%% The reason for this design is that edoc:get_doc/1 prints its errors to the
+%% standard output before returning. This means that we have no easy way of
+%% printing anything before Edoc to indicate to the caller of
+%% erlang_complete.erl that an error message will follow. (This caller is
+%% usually erlang_complete.vim.) This design is also useful in case of other
+%% errors, e.g. if the erlang_complete.erl script itself cannot be executed, and
+%% the error is printed by the Erlang environment to the standard
+%% output or standard error.
 %%
 %% This function assumes that the code paths are all set.
 %% @end
@@ -812,8 +831,6 @@ run2({list_functions, Mod}) ->
             throw:not_found ->
                 [];
             error:{badmatch, _} ->
-                [];
-            exit:error ->
                 []
         end,
 
@@ -825,9 +842,15 @@ run2({list_functions, Mod}) ->
                 []
         end,
 
-    FunSpecs = merge_functions(Edoc, Info),
-    [print_function(Fun) || Fun <- FunSpecs ],
-    ok.
+    case {Edoc, Info} of
+        {[], []} ->
+            io:format("Module not found.\n");
+        _ ->
+            FunSpecs = merge_functions(Edoc, Info),
+            io:format("execution_successful\n"),
+            [print_function(Fun) || Fun <- FunSpecs ],
+            ok
+    end.
 
 %%------------------------------------------------------------------------------
 %% @doc Return the specification of all exported functions.
@@ -858,7 +881,25 @@ module_edoc(Mod) ->
             {File0, _} ->
                 File0 ++ ".erl"
         end,
-    {_, Doc} = edoc:get_doc(File),
+
+    {_, Doc} =
+        try
+            % We ask Edoc to:
+            %
+            % 1. Parse the module's source code.
+            % 2. Extract information about functions, types and docstrings.
+            % 3. Put this information into an Erlang term that represents an XML
+            %    (and can be queried with functions in the xmerl application).
+            edoc:get_doc(File)
+        catch
+            _:Error ->
+                % If edoc:get_doc/1 was unsuccessful, it already printed its
+                % errors and throw an exception. Sometimes it might be still
+                % useful to print the exception, so let's print it.
+                io:format("Edoc error: ~p~n", [Error]),
+                throw(error)
+        end,
+
     Funs = xmerl_xpath:string("/module/functions/function", Doc),
     FunSpecs = lists:map(fun analyze_function/1, Funs),
     lists:keysort(1, FunSpecs).

@@ -339,6 +339,56 @@ function s:CreateComplItem(type, spec)
            \'dup': 1}
 endfunction
 
+" Add error as completion items.
+"
+" Parameters:
+"
+" - base: The word to be completed.
+" - error_output: The output of the erlang_complete.erl script, which
+"   describes the error.
+"
+" This functions adds a short help text ("Completion error...") to the
+" completion popup, and it adds the actual error to the preview window.
+"
+" See the documentation of the completion items in ":help complete-items".
+function s:AddComplErrorItems(compl_words, base, error_output)
+
+    " Vim inserts compl_word instead of the word already typed by the user. We
+    " don't want to modify the text already typed by the user (a:base), so we
+    " set compl_word to a:base, making Vim replace the already typed word with
+    " itself.
+    "
+    " There is one exception. If the already typed word is an empty string, we
+    " need to replace it with something, because if compl_word is an empty
+    " string, then Vim will ignore that completion item, and it will say "Omni
+    " completion Pattern not found), and it will not show either the
+    " completion popup or the preview window. To make Vim show the error
+    " popup, we set compl_word to ' ' in this case.
+    let compl_word = (a:base == '') ? ' ' : a:base
+
+    " Let's show the error output in the preview window (if it is enabled).
+    let compl_info = a:error_output . s:GetPreviewLine()
+
+    let help_lines =
+        \ ["Completion error.",
+        \  " ",
+        \  "The preview window contains the error output.",
+        \  "Enable the preview window with: ':set cot+=preview'.",
+        \  " ",
+        \  "See ':help vim-erlang-omnicomplete-errors' for more information."]
+
+    " In order to show the help lines in the completion popup, we add each
+    " help line in a separate completion item.
+    for help_line in help_lines
+        let compl_item = {'word': compl_word,
+                         \'abbr': help_line,
+                         \'info': compl_info,
+                         \'dup': 1}
+        call add(a:compl_words, compl_item)
+    endfor
+
+endfunction
+
 " Find external function names
 "
 " Parameters:
@@ -363,42 +413,59 @@ function s:ErlangFindExternalFunc(module, base)
     endif
 
     let compl_words = []
-    let functions = system('escript ' . fnameescape(s:erlang_complete_file) .
-                          \' list-functions ' . fnameescape(a:module) .
-                          \' --basedir ' .  fnameescape(expand('%:p:h')))
-    " We iterate on functions in the given module that start with `base` and
-    " add them to the completion list.
-    for function_spec in split(functions, '\n')
-        " - When the function doesn't have a type spec, its function_spec
-        "   will be e.g. "f/2".
-        " - When the function has a type spec, its function_spec will be e.g.
-        "   "f(A, B)".
-        if match(function_spec, a:base) == 0
-            let compl_item = s:CreateComplItem('function_spec', function_spec)
-            call add(compl_words, compl_item)
+    let output = system('escript ' . fnameescape(s:erlang_complete_file) .
+                        \' list-functions ' . fnameescape(a:module) .
+                        \' --basedir ' .  fnameescape(expand('%:p:h')))
+    let output_lines = split(output, '\n')
 
-            " Populate the cache only when iterating over all the
-            " module functions (i.e. no prefix for the completion)
-            if g:erlang_completion_cache && a:base == ''
-                if !has_key(s:modules_cache, a:module)
-                    let s:modules_cache[a:module] = [compl_item]
-                else
-                    let module_cache = get(s:modules_cache, a:module)
-                    let s:modules_cache[a:module] =
-                      \ add(module_cache, compl_item)
+    if len(output_lines) == 0
+        " No completion was found, so we don't add any completion item.
+
+    elseif output_lines[0] == 'execution_successful' 
+
+        " We found possible completions, so we add them as completions items.
+
+        " We iterate on functions in the given module that start with `base` and
+        " add them to the completion list.
+        let function_specs = output_lines[1:]
+        for function_spec in function_specs
+            " - When the function doesn't have a type spec, its function_spec
+            "   will be e.g. "f/2".
+            " - When the function has a type spec, its function_spec will be e.g.
+            "   "f(A, B)".
+            if match(function_spec, a:base) == 0
+                let compl_item = s:CreateComplItem('function_spec', function_spec)
+                call add(compl_words, compl_item)
+
+                " Populate the cache only when iterating over all the
+                " module functions (i.e. no prefix for the completion)
+                if g:erlang_completion_cache && a:base == ''
+                    if !has_key(s:modules_cache, a:module)
+                        let s:modules_cache[a:module] = [compl_item]
+                    else
+                        let module_cache = get(s:modules_cache, a:module)
+                        let s:modules_cache[a:module] =
+                          \ add(module_cache, compl_item)
+                    endif
+                endif
+
+                " The user entered some text, so stop the completion
+                if complete_check()
+                    " The module couldn't be entirely cached
+                    if has_key(s:modules_cache, a:module)
+                        call remove(s:modules_cache, a:module)
+                    endif
+                    break
                 endif
             endif
+        endfor
 
-            " The user entered some text, so stop the completion
-            if complete_check()
-                " The module couldn't be entirely cached
-                if has_key(s:modules_cache, a:module)
-                    call remove(s:modules_cache, a:module)
-                endif
-                break
-            endif
-        endif
-    endfor
+    else
+
+        " There was an error during completion.
+        call s:AddComplErrorItems(compl_words, a:base, output)
+
+    endif
 
     return compl_words
 endfunction
