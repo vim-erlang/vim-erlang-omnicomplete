@@ -909,7 +909,8 @@ module_edoc(Mod) ->
             % 2. Extract information about functions, types and docstrings.
             % 3. Put this information into an Erlang term that represents an XML
             %    (and can be queried with functions in the xmerl application).
-            edoc:get_doc(File)
+            FileRel = relatizive_path_maybe(File),
+            edoc:get_doc(FileRel)
         catch
             _:Error ->
                 % If edoc:get_doc/1 was unsuccessful, it already printed its
