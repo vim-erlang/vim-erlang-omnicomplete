@@ -1333,7 +1333,8 @@ file_error(File, Error) ->
                 1
         end,
 
-    io:format(standard_io, "~s:~p: ", [File, LineNumber]),
+    FileRel = relatizive_path_maybe(File),
+    io:format(standard_io, "~s:~p: ", [FileRel, LineNumber]),
 
     case Error of
         {file_error, FileError} ->
@@ -1425,3 +1426,30 @@ log_error(Format) ->
       Data :: [term()].
 log_error(Format, Data) ->
     io:format(standard_error, Format, Data).
+
+%%------------------------------------------------------------------------------
+%% @doc Try to convert a path to a relative path.
+%% @end
+%%------------------------------------------------------------------------------
+-spec relatizive_path_maybe(Path) -> Path when
+      Path :: file:filename().
+relatizive_path_maybe(Path) ->
+    {ok, Cwd} = file:get_cwd(),
+
+    case lists:prefix(Cwd, Path) of
+        true ->
+            % Example:
+            % Cwd = "/home/my"
+            % Path = "/home/my/dir/my_file.erl"
+            %                ^ length(Cwd)
+            %                  ^ Start
+            %                  <-------------> Len
+            % FileRel = "dir/my_file.erl"
+            Start = length(Cwd) + 2,
+            Len = length(Path) - length(Cwd) - 1,
+            lists:sublist(Path, Start, Len);
+        false ->
+            % The path is not below the current directory, so let's keep it
+            % absolute.
+            Path
+    end.
