@@ -141,7 +141,7 @@ g:erlang_completion_nonzero_arity_paren
 
                list_to_atom(
 <
-g:erlang_completion_extend_arity            g:erlang_completion_extend_arity
+g:erlang_completion_extend_arity            *g:erlang_completion_extend_arity*
         Determines how to display functions where only the arity is known.
 
         a. If set to `0`, such functions will be displayed with their arity,
@@ -155,6 +155,19 @@ g:erlang_completion_extend_arity            g:erlang_completion_extend_arity
                module_info(T1) -> any()
 
 <        The default value is `1`.
+
+                           *g:erlang_completion_extend_code_path_wildcard*
+g:erlang_completion_extend_code_path_wildcard            
+        Specifies a wildcard to be used to extend the code path
+        list that is used when searching for modules. All directories that
+        matches the wildcard will be added to the code path list. See the
+        documentation of the Erlang function `filelib:wildcard/1` for the
+        syntax of wildcards. This option is useful when you have a
+        non-standard directory structure for your Erlang projects.
+
+        Example:
+
+        `let g:erlang_completion_extend_code_path_wildcard = './_build/*/lib/*/ebin'`
 
 ==============================================================================
 CONFIGURATION REBAR3                   *vim-erlang-omnicomplete-config-rebar3*

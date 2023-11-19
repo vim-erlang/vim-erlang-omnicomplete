@@ -4,6 +4,7 @@
 " Contributors: kTT (http://github.com/kTT)
 "               Ricardo Catalinas Jiménez <jimenezrick@gmail.com>
 "               Eduardo Lopez (http://github.com/tapichu)
+"               Kjell Winblad (https://dupwin.se)
 " License:      Vim license
 
 " Completion program path
@@ -47,6 +48,9 @@ if !exists('g:erlang_completion_extend_arity')
     let g:erlang_completion_extend_arity = 1
 end
 
+if !exists('g:erlang_completion_extend_code_path_wildcard')
+    let g:erlang_completion_extend_code_path_wildcard = ""
+end
 " Modules cache used to speed up the completion.
 "
 " This dictionary contains completion items that represent functions exported
@@ -415,7 +419,8 @@ function s:ErlangFindExternalFunc(module, base)
     let compl_words = []
     let output = system('escript ' . fnameescape(s:erlang_complete_file) .
                         \' list-functions ' . fnameescape(a:module) .
-                        \' --basedir ' .  fnameescape(expand('%:p:h')))
+                        \' --basedir ' .  fnameescape(expand('%:p:h')) .
+                        \' --extend-code-path-wildcard ' .  fnameescape(g:erlang_completion_extend_code_path_wildcard))
     let output_lines = split(output, '\n')
 
     " There are two possibilities:
@@ -546,7 +551,8 @@ function s:ErlangFindLocalFunc(base)
     " Find modules that start with `base`.
     let modules = system('escript ' . fnameescape(s:erlang_complete_file) .
                         \' list-modules ' .
-                        \' --basedir ' . fnameescape(expand('%:p:h')))
+                        \' --basedir ' . fnameescape(expand('%:p:h')) .
+                        \' --extend-code-path-wildcard ' .  fnameescape(g:erlang_completion_extend_code_path_wildcard))
     for module in split(modules, '\n')
         if module =~# base
             let compl_item = s:CreateComplItem('module', module)
