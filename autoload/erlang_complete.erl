@@ -165,6 +165,12 @@ parse_args(["--basedir", BaseDir|OtherArgs], Acc) ->
 parse_args(["--basedir"], _Acc) ->
     log_error("Argument needed after '--basedir'.~n", []),
     halt(2);
+parse_args(["--extend-code-path-wildcard", BaseDir|OtherArgs], Acc) ->
+    put(extend_code_path_wildcard, BaseDir),
+    parse_args(OtherArgs, Acc);
+parse_args(["--extend-code-path-wildcard"], _Acc) ->
+    log_error("Argument needed after '--extend-code-path-wildcard'.~n", []),
+    halt(2);
 parse_args(["--"|PosPars], Acc) ->
     PosPars ++ Acc;
 parse_args([[$-|_] = Arg|_], _Acc) ->
@@ -295,8 +301,18 @@ load_build_info(Path) ->
     % same as AppRoot).
     ProjectRoot = get_project_root(BuildSystem, BuildFiles, AppRoot),
     BuildSystemOpts = load_build_files(BuildSystem, ProjectRoot, BuildFiles),
-
+    add_code_paths(), 
     {AppRoot, ProjectRoot, BuildSystemOpts}.
+
+add_code_paths() ->
+    case get(extend_code_path_wildcard) of
+        undefined ->
+            ok;
+        "" ->
+            ok;
+        Wildcard ->
+            code:add_pathsa(filelib:wildcard(Wildcard))
+    end.
 
 %%------------------------------------------------------------------------------
 %% @doc Traverse the directory structure upwards until is_app_root matches.
